@@ -624,3 +624,16 @@ body > * { position: relative; z-index: 1; }
 .macrobar { display: flex; align-items: center; gap: .3rem; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; min-height: 26px; }
 .macro { flex: none; padding: .2rem .65rem; border-radius: 999px; cursor: pointer; font: 600 .75rem var(--f-title); color: var(--ink); border: 1px solid var(--royal-hi); background: linear-gradient(180deg, rgba(59,98,201,.35), rgba(31,63,154,.25)); transition: all .15s var(--ease); }
 .macro:hover { transform: translateY(-1px); border-color: var(--gold-hi); color: #fff1c4; }
+
+/* Modais abertos a partir do painel bege voltam ao tema escuro */
+.theme-light .modal-back .field { background: rgba(10, 6, 3, .55); color: var(--ink); border-color: var(--line); }
+.theme-light .modal-back .field:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(201,162,75,.15); }
+.theme-light .modal-back .field option { background: #24170f; color: var(--ink); }
+.theme-light .modal-back .btn.ghost { color: var(--ink); background: rgba(0,0,0,.18); }
+.theme-light .modal-back .iconbtn { color: var(--ink-dim); }
+.theme-light .modal-back .iconbtn:hover { color: var(--gold-hi); background: rgba(201,162,75,.08); border-color: var(--line); }
+.theme-light .modal-back .sheet-item { background: var(--tint); border-color: var(--line-soft); box-shadow: none; }
+.theme-light .modal-back .chip { color: var(--ink-dim); }
+.theme-light .modal-back .empty { background: transparent; }
+html:not([data-skin="medieval"]) .theme-light .modal-back .field { background: var(--field-bg); color: var(--ink); }
+html:not([data-skin="medieval"]) .theme-light .modal-back .field option { background: var(--pop-bg); }
