@@ -32,7 +32,7 @@ html:not([data-skin="medieval"]) .title-deco { color: var(--accent); text-shadow
 html:not([data-skin="medieval"]) .btn { background: var(--btn-bg); color: var(--btn-ink); border: var(--btn-border); box-shadow: var(--btn-shadow); border-radius: var(--radius-sm); }
 html:not([data-skin="medieval"]) .btn.ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); box-shadow: none; }
 html:not([data-skin="medieval"]) .btn.ghost:hover { color: var(--accent); border-color: var(--accent); }
-html:not([data-skin="medieval"]) .ribbon { background: var(--accent); color: var(--btn-ink); clip-path: none; border-radius: var(--radius-sm); margin-left: 0; text-shadow: none; padding: .35rem .8rem; }
+html:not([data-skin="medieval"]) .ribbon { background: var(--accent); color: var(--on-accent); clip-path: none; border-radius: var(--radius-sm); margin-left: 0; text-shadow: none; padding: .35rem .8rem; }
 html:not([data-skin="medieval"]) .sec-title { color: var(--accent); }
 html:not([data-skin="medieval"]) .sec-title::before { content: none; }
 html:not([data-skin="medieval"]) .flourish { color: var(--accent); }
@@ -41,7 +41,7 @@ html:not([data-skin="medieval"]) .msg.action .body::before { content: "› "; co
 html:not([data-skin="medieval"]) .narr { background: var(--narr-bg); color: var(--narr-ink); border: 1px solid var(--line); box-shadow: none; border-radius: var(--radius); }
 html:not([data-skin="medieval"]) .narr::first-letter { font-family: var(--f-title); color: var(--accent); }
 html:not([data-skin="medieval"]) .narr::after { display: none; }
-html:not([data-skin="medieval"]) .scene-card { background: var(--accent); color: var(--btn-ink); border: 0; border-radius: var(--radius-sm); }
+html:not([data-skin="medieval"]) .scene-card { background: var(--accent); color: var(--on-accent); border: 0; border-radius: var(--radius-sm); }
 html:not([data-skin="medieval"]) .hints, html:not([data-skin="medieval"]) .amb-menu { background: var(--pop-bg); border-color: var(--line); }
 html:not([data-skin="medieval"]) .modal.frame { background: var(--pop-bg); }
 html:not([data-skin="medieval"]) .rollcard { background: var(--card-bg); border-color: var(--line); }
@@ -49,13 +49,13 @@ html:not([data-skin="medieval"]) .total { color: var(--accent); text-shadow: non
 html:not([data-skin="medieval"]) .tray { border-color: var(--accent); background: var(--card-bg); color: var(--accent); }
 html:not([data-skin="medieval"]) .tray-expr { color: var(--ink); }
 html:not([data-skin="medieval"]) .die-btn svg { color: var(--accent); }
-html:not([data-skin="medieval"]) .die-btn.on, html:not([data-skin="medieval"]) .dbtn:hover { background: var(--accent); color: var(--btn-ink); border-color: var(--accent); }
-html:not([data-skin="medieval"]) .die-btn.on svg, html:not([data-skin="medieval"]) .dbtn:hover svg { color: var(--btn-ink); }
+html:not([data-skin="medieval"]) .die-btn.on, html:not([data-skin="medieval"]) .dbtn:hover { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+html:not([data-skin="medieval"]) .die-btn.on svg, html:not([data-skin="medieval"]) .dbtn:hover svg { color: var(--on-accent); }
 html:not([data-skin="medieval"]) .dbtn { color: var(--ink); border-color: var(--line); background: var(--tint); box-shadow: none; }
 html:not([data-skin="medieval"]) .macro { background: transparent; border-color: var(--accent-2); color: var(--ink); }
 html:not([data-skin="medieval"]) .pub-card { background: var(--card-bg); border-color: var(--line); }
 html:not([data-skin="medieval"]) .pub-card h3 { color: var(--ink); }
-html:not([data-skin="medieval"]) .pub-seal { background: var(--accent); color: var(--btn-ink); }
+html:not([data-skin="medieval"]) .pub-seal { background: var(--accent); color: var(--on-accent); }
 html:not([data-skin="medieval"]) .return-banner { background: var(--top-bg); color: var(--top-ink); border: var(--panel-border); }
 html:not([data-skin="medieval"]) .field { background: var(--field-bg); color: var(--ink); border-color: var(--line); border-radius: var(--radius-sm); }
 html:not([data-skin="medieval"]) .field:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--focus); }
@@ -70,7 +70,7 @@ html:not([data-skin="medieval"]) .tab.on { color: var(--accent) !important; bord
 html:not([data-skin="medieval"]) .theme-light .sheet-item, html:not([data-skin="medieval"]) .sheet-item { background: var(--tint); border-color: var(--line-soft); box-shadow: none; }
 html:not([data-skin="medieval"]) .theme-light .sheet-item.on, html:not([data-skin="medieval"]) .sheet-item.on { background: var(--tint-2); border-color: var(--accent); box-shadow: none; }
 html:not([data-skin="medieval"]) .round { color: var(--accent); font-family: var(--f-title); }
-html:not([data-skin="medieval"]) .init-val { background: var(--accent); color: var(--btn-ink); }
+html:not([data-skin="medieval"]) .init-val { background: var(--accent); color: var(--on-accent); }
 html:not([data-skin="medieval"]) .init-item.cur { border-color: var(--accent); background: var(--tint-2); }
 html:not([data-skin="medieval"]) .reveal-card { background: var(--pop-bg); color: var(--ink); border-color: var(--accent); }
 html:not([data-skin="medieval"]) .reveal-card h2 { color: var(--accent); }
@@ -264,3 +264,8 @@ html[data-skin="scifi"] .ctx-menu { box-shadow: 0 0 18px rgba(0,240,255,.25); }
 html:not([data-skin="medieval"]) .skin-pop { background: var(--pop-bg); border-color: var(--line); border-radius: var(--radius); }
 html:not([data-skin="medieval"]) .skin-picker > .btn { background: var(--pop-bg); }
 html[data-skin="mirc"] .skin-pop { box-shadow: var(--btn-shadow); border: 0; }
+
+html[data-skin="minimal"] { --on-accent: #ffffff; }
+html[data-skin="modern"] { --on-accent: #ffffff; }
+html[data-skin="scifi"] { --on-accent: #04060b; }
+html[data-skin="mirc"] { --on-accent: #ffffff; }
