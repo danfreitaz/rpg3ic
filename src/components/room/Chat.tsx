@@ -1,7 +1,8 @@
 "use client"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Flourish, Icon } from "@/components/Icon"
-import type { Msg } from "@/lib/types"
+import type { Macro, Msg } from "@/lib/types"
+import { Modal } from "./Table"
 import { hhmm, initials, useRoom } from "./ctx"
 import { sfx } from "@/components/sound"
 
@@ -33,6 +34,8 @@ const COMMANDS: { c: string; d: string; gm?: boolean }[] = [
   { c: "/quem", d: "Quem está à mesa (só você vê)" },
   { c: "/ajuda", d: "Lista os comandos (só você vê)" },
   { c: "/cena Porto de Arcadia, ao entardecer", d: "Muda a cena do topo e anuncia", gm: true },
+  { c: "/revelar https://imagem.jpg Título | texto", d: "Mostra imagem e/ou texto na tela de todos", gm: true },
+  { c: "/trilha chuva", d: "Trilha ambiente: taverna, chuva, floresta, masmorra, batalha, mar, vento, silencio", gm: true },
 ]
 
 const DIE: Record<number, string> = {
@@ -141,6 +144,7 @@ export function Chat() {
         <Icon n="scroll" />
         <h3 style={{ fontSize: ".95rem" }} className="grow">Crônica da mesa</h3>
         <span className="faint" style={{ fontSize: ".8rem" }}>{R.messages.length} registros</span>
+        <button className="btn ghost sm" onClick={() => exportMd(R)} title="Baixar a crônica desta sessão em Markdown"><Icon n="book" size={12} /> Exportar .md</button>
       </div>
       <div className="log" ref={logRef} onScroll={(e) => { const el = e.currentTarget; stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80 }}>
         {R.messages.length === 0 && <div className="empty">A mesa está em silêncio. Quebre o gelo.</div>}
@@ -166,6 +170,7 @@ export function Chat() {
             <button className="iconbtn sm" onClick={() => { clearPool() }} title="Esvaziar a bandeja"><Icon n="x" size={13} /></button>
           </div>
         )}
+        <MacroBar onRun={async (m) => { for (const line of m.text.split("\n").map((l) => l.trim()).filter(Boolean)) { if (!(await R.chat(line))) break } }} />
         <div className="dicebar">
           {[4, 6, 8, 10, 12, 20, 100].map((d) => (
             <button key={d} className={"dbtn die-btn " + (pool[d] ? "on" : "")} onClick={() => addDie(d)} onContextMenu={(e) => { e.preventDefault(); addDie(d, -1) }} title={`Clique: põe 1d${d} na bandeja · botão direito: tira`}>
@@ -210,6 +215,13 @@ function Line({ m, prev }: { m: Msg; prev?: Msg }) {
   const R = useRoom()
   if (m.kind === "system") return <div className={"sys " + (m.to_member ? "private" : "")}><Icon n={m.data?.icon || "star"} size={14} />{m.body}{m.to_member && <span className="chip violet" style={{ marginLeft: ".3rem" }}>só você</span>}</div>
   if (m.kind === "ooc") return <div className="ooc"><span className="who" style={{ color: m.color }}>{m.speaker}</span> <span className="faint">(fora do jogo)</span> {m.body}</div>
+  if (m.kind === "reveal") return (
+    <div className="reveal-line">
+      <div className="lbl2"><Icon n="eye" size={12} /> Revelação{m.data?.title ? `: ${m.data.title}` : ""}</div>
+      {m.data?.image && <img src={m.data.image} alt="" />}
+      {m.body && <div className="body">{m.body}</div>}
+    </div>
+  )
   if (m.kind === "scene") return <div className="scene-card"><Icon n="castle" size={16} /><span>{m.body}</span></div>
   if (m.kind === "narration") return <div className="parch narr"><Flourish />{m.body}</div>
   if (m.kind === "turn") return <div className="turnbar"><Icon n="hourglass" size={15} /> Rodada {m.data?.round} · vez de {m.data?.name}</div>
@@ -325,4 +337,82 @@ function Status({ m }: { m: Msg }) {
       {(d.conds ?? []).length > 0 && <div className="row wrap" style={{ gap: ".25rem" }}>{d.conds.map((c: any) => <span key={c.n} className="chip violet">{c.n}</span>)}</div>}
     </div>
   )
+}
+
+function MacroBar({ onRun }: { onRun: (m: Macro) => void }) {
+  const R = useRoom()
+  const [edit, setEdit] = useState(false)
+  const list = (R.me.macros ?? []) as Macro[]
+  return (
+    <div className="macrobar">
+      <Icon n="star" size={13} className="faint" />
+      {list.length === 0 && <span className="faint" style={{ fontSize: ".8rem" }}>Sem macros. Crie atalhos para comandos que você usa sempre.</span>}
+      {list.map((m, i) => (
+        <button key={i} className="macro" onClick={() => onRun(m)} title={m.text}>{m.name}</button>
+      ))}
+      <button className="iconbtn sm" title="Editar macros" onClick={() => setEdit(true)}><Icon n="gear" size={13} /></button>
+      {edit && <MacroEditor initial={list} onClose={() => setEdit(false)} />}
+    </div>
+  )
+}
+
+function MacroEditor({ initial, onClose }: { initial: Macro[]; onClose: () => void }) {
+  const R = useRoom()
+  const [list, setList] = useState<Macro[]>(initial.length ? initial : [{ name: "Ataque", text: "/r 1d20+FOR #Ataque\n/r 1d8+FOR #Dano" }])
+  const set = (i: number, p: Partial<Macro>) => setList(list.map((m, j) => (j === i ? { ...m, ...p } : m)))
+  return (
+    <Modal title="Suas macros" icon="star" onClose={onClose}>
+      <p className="muted" style={{ marginTop: 0 }}>Cada linha vira uma mensagem ou comando, em ordem. Ex.: um ataque que rola o acerto e o dano de uma vez.</p>
+      {list.map((m, i) => (
+        <div key={i} className="row" style={{ alignItems: "flex-start", marginBottom: ".5rem" }}>
+          <input className="field" style={{ width: 140 }} value={m.name} maxLength={24} placeholder="Nome" onChange={(e) => set(i, { name: e.target.value })} />
+          <textarea className="field grow mono" style={{ fontSize: ".82rem", minHeight: "3.2em" }} value={m.text} placeholder="/r 1d20+DES #Furtividade" onChange={(e) => set(i, { text: e.target.value })} />
+          <button className="iconbtn sm" onClick={() => setList(list.filter((_, j) => j !== i))} title="Remover"><Icon n="trash" size={13} /></button>
+        </div>
+      ))}
+      <div className="row" style={{ marginTop: ".6rem" }}>
+        <button className="btn ghost sm" disabled={list.length >= 20} onClick={() => setList([...list, { name: "", text: "" }])}><Icon n="plus" size={12} /> Macro</button>
+        <span className="grow" />
+        <button className="btn" onClick={async () => { if (await R.act("me.set", { macros: list })) { R.toast("Macros salvas.", true); onClose() } }}><Icon n="check" size={14} /> Salvar</button>
+      </div>
+    </Modal>
+  )
+}
+
+/** Baixa a crônica da sessão em Markdown (o que este jogador consegue ver). */
+function exportMd(R: ReturnType<typeof useRoom>) {
+  const date = new Date().toLocaleDateString("pt-BR")
+  const out: string[] = [`# Crônica — ${R.room.name}`, "", `*Mesa ${R.code} · exportada em ${date}${R.room.scene ? ` · cena: ${R.room.scene}` : ""}*`, ""]
+  let day = ""
+  for (const m of R.messages) {
+    const d = new Date(m.created_at)
+    const dd = d.toLocaleDateString("pt-BR")
+    if (dd !== day) { day = dd; out.push("", `## ${dd}`, "") }
+    const t = hhmm(m.created_at)
+    switch (m.kind) {
+      case "say": out.push(`**${m.speaker}:** ${m.body}  `); break
+      case "action": out.push(`*${m.speaker} ${m.body}*  `); break
+      case "shout": out.push(`**${m.speaker} grita:** ${m.body}!  `); break
+      case "whisper": out.push(`> *(sussurro de ${m.speaker} para ${m.data?.to ?? "?"})* ${m.body}`); break
+      case "narration": out.push("", `> ${m.body.replace(/\n/g, "\n> ")}`, ""); break
+      case "scene": out.push("", `### 🏰 ${m.body}`, ""); break
+      case "reveal": out.push("", `> **Revelação${m.data?.title ? `: ${m.data.title}` : ""}** ${m.body}${m.data?.image ? `\n>\n> ![](${m.data.image})` : ""}`, ""); break
+      case "roll": { const r = m.data?.r; out.push(`🎲 ${m.speaker}${m.body ? ` (${m.body})` : ""}: \`${r?.expr}\` = **${r?.total}**${r?.crit ? " — crítico!" : r?.fumble ? " — falha crítica" : ""}${m.secret ? " *(secreta)*" : ""}  `); break }
+      case "change": for (const c of m.data?.ch ?? []) out.push(`✦ ${c.name} · ${c.label}: ${c.from} → ${c.to}  `); break
+      case "coin": out.push(`🪙 ${m.speaker} jogou a moeda${m.body ? ` (${m.body})` : ""}: **${m.data?.face}**  `); break
+      case "oracle": out.push(`🔮 ${m.speaker} perguntou ao oráculo: “${m.body}” → **${m.data?.answer}**  `); break
+      case "turn": out.push(`⏳ Rodada ${m.data?.round} — vez de ${m.data?.name}  `); break
+      case "ooc": out.push(`<sub>(${m.speaker}, fora do jogo: ${m.body})</sub>  `); break
+      case "status": break
+      default: if (!m.to_member) out.push(`— ${m.body} —  `)
+    }
+    void t
+  }
+  const blob = new Blob([out.join("\n")], { type: "text/markdown;charset=utf-8" })
+  const a = document.createElement("a")
+  a.href = URL.createObjectURL(blob)
+  a.download = `cronica-${R.room.name.normalize("NFD").replace(/[^\w]+/g, "-").toLowerCase()}-${new Date().toISOString().slice(0, 10)}.md`
+  a.click()
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000)
+  R.toast("Crônica exportada.", true)
 }

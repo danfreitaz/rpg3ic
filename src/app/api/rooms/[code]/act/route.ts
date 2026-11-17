@@ -1,10 +1,10 @@
 import { nextTurn, post, setRole } from "@/lib/commands"
 import { sql, uid } from "@/lib/db"
 import { ctx, fail, json, type Ctx } from "@/lib/room"
-import { blankData, EMPTY_INIT, norm, type Field, type Sheet, type Template, type Token } from "@/lib/types"
+import { AMBIENCES, SKINS, blankData, EMPTY_INIT, norm, type Field, type Sheet, type Template, type Token } from "@/lib/types"
 
 // Chaves que colidiriam com comandos do chat.
-const RESERVED = new Set(["r", "rolar", "roll", "dado", "sr", "rs", "gmr", "secreto", "me", "acao", "a", "w", "s", "sussurro", "sussurrar", "n", "narrar", "narracao", "npc", "como", "desfazer", "undo", "init", "iniciativa", "proximo", "prox", "next", "turno", "cond", "condicao", "gm", "mestre", "moeda", "coin", "oraculo", "sorte", "destino", "dano", "ferir", "cura", "curar", "descansar", "descanso", "status", "ficha", "ooc", "off", "fora", "grito", "gritar", "cena", "quem", "presentes", "ajuda", "help", "comandos"])
+const RESERVED = new Set(["r", "rolar", "roll", "dado", "sr", "rs", "gmr", "secreto", "me", "acao", "a", "w", "s", "sussurro", "sussurrar", "n", "narrar", "narracao", "npc", "como", "desfazer", "undo", "init", "iniciativa", "proximo", "prox", "next", "turno", "cond", "condicao", "gm", "mestre", "moeda", "coin", "oraculo", "sorte", "destino", "dano", "ferir", "cura", "curar", "descansar", "descanso", "status", "ficha", "ooc", "off", "fora", "grito", "gritar", "cena", "quem", "presentes", "ajuda", "help", "comandos", "revelar", "mostrar", "trilha", "musica"])
 const str = (v: any, max: number) => String(v ?? "").trim().slice(0, max)
 const url = (v: any) => { const s = str(v, 600); return /^https:\/\/\S+$/.test(s) ? s : "" }
 const hex = (v: any, d = "#c9a24b") => (/^#[0-9a-f]{6}$/i.test(String(v)) ? String(v) : d)
@@ -157,6 +157,16 @@ async function act(c: Ctx, b: any): Promise<any> {
         if (!c.isOwner) return { error: "Só quem criou a sala decide se ela é pública." }
         await sql`UPDATE rooms SET public = ${!!b.public} WHERE id = ${c.room.id}`
       }
+      if (b.skin !== undefined) {
+        if (!SKINS.some((x) => x.id === b.skin)) return { error: "Skin desconhecida." }
+        await sql`UPDATE rooms SET skin = ${b.skin} WHERE id = ${c.room.id}`
+      }
+      if (b.ambience !== undefined) {
+        if (!AMBIENCES.some((x) => x.id === b.ambience)) return { error: "Trilha desconhecida." }
+        await sql`UPDATE rooms SET ambience = ${b.ambience} WHERE id = ${c.room.id}`
+        const a = AMBIENCES.find((x) => x.id === b.ambience)!
+        await post(c, { kind: "system", body: b.ambience ? `Ao fundo: ${a.name}.` : "A trilha silencia.", data: { icon: a.icon } })
+      }
       if (b.scene !== undefined) await sql`UPDATE rooms SET scene = ${str(b.scene, 80)} WHERE id = ${c.room.id}`
       if (b.gm_locked !== undefined) {
         if (!c.isOwner) return { error: "Só quem criou a sala trava o posto de mestre." }
@@ -177,6 +187,12 @@ async function act(c: Ctx, b: any): Promise<any> {
     case "me.set": {
       if (b.name !== undefined) { const n = str(b.name, 24); if (n.length >= 2) await sql`UPDATE members SET name = ${n} WHERE id = ${c.me.id}` }
       if (b.color !== undefined) await sql`UPDATE members SET color = ${hex(b.color)} WHERE id = ${c.me.id}`
+      if (b.macros !== undefined) {
+        const list = (Array.isArray(b.macros) ? b.macros : []).slice(0, 20)
+          .map((m: any) => ({ name: str(m?.name, 24), text: String(m?.text ?? "").trim().slice(0, 600) }))
+          .filter((m: any) => m.name && m.text)
+        await sql`UPDATE members SET macros = ${JSON.stringify(list)}::jsonb WHERE id = ${c.me.id}`
+      }
       return {}
     }
     default:

@@ -39,6 +39,7 @@ export default function Home() {
     load()
     const t = setInterval(load, 30000)
     try { const l = JSON.parse(localStorage.getItem("r3_last_room") || "null"); if (l?.code) setLast(l) } catch {}
+    try { document.documentElement.dataset.skin = localStorage.getItem("r3_skin") || "medieval" } catch {}
     return () => clearInterval(t)
   }, [])
 

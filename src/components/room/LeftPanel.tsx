@@ -330,6 +330,7 @@ function Lore({ editable }: { editable: boolean }) {
             {list.map((n) => (
               <div key={n.id} className="parch note rise">
                 <h4>{n.title} {n.hidden && <Icon n="eyeoff" size={13} />}<span className="grow" />
+                  {R.isGM && <button className="iconbtn sm" style={{ color: "#6b4a22" }} title="Mostrar na tela de todos" onClick={() => R.chat(`/revelar ${n.title} | ${n.body}`)}><Icon n="eye" size={13} /></button>}
                   {R.isGM && <button className="iconbtn sm" style={{ color: "#6b4a22" }} onClick={() => setEdit(n)}><Icon n="quill" size={13} /></button>}
                 </h4>
                 {n.body && <div className="txt">{n.body}</div>}
@@ -339,6 +340,7 @@ function Lore({ editable }: { editable: boolean }) {
         )
       })}
       {!editable && R.isGM && <p className="faint" style={{ fontSize: ".85rem" }}>Crie e revele histórias e locais na aba Mestre → História.</p>}
+      {can && <RevealForm />}
       {edit && <NoteEditor n={edit} onClose={() => setEdit(null)} />}
     </>
   )
@@ -404,6 +406,8 @@ function HelpTab() {
     ["/pv @todos +5", "Afeta todos os personagens"],
     ["/desfazer", "Desfaz a última mudança de atributo"],
     ["/cena Porto ao entardecer", "Troca a cena do topo e anuncia a todos"],
+    ["/revelar https://img.jpg Título | texto", "Abre uma revelação na tela de todos"],
+    ["/trilha chuva", "Trilha ambiente (taverna, chuva, floresta, masmorra, batalha, mar, vento, silencio)"],
   ]
   return (
     <div className="helpgrid">
@@ -414,6 +418,25 @@ function HelpTab() {
       <div className="sec-title">Atalhos</div>
       <div className="muted"><kbd>Enter</kbd> envia · <kbd>Shift+Enter</kbd> quebra linha · <kbd>↑</kbd> repete o último · <kbd>Tab</kbd> completa · <kbd>@</kbd> sugere nomes · clique nos dados para enchê-los na bandeja, botão direito tira</div>
       {!R.isGM && <p className="faint" style={{ fontSize: ".85rem" }}>Mudar atributos de outras fichas é poder do mestre.</p>}
+    </div>
+  )
+}
+
+function RevealForm() {
+  const R = useRoom()
+  const [img, setImg] = useState("")
+  const [title, setTitle] = useState("")
+  const [text, setText] = useState("")
+  return (
+    <div className="parch note" style={{ marginTop: ".8rem" }}>
+      <h4><Icon n="eye" size={14} /> Revelar na tela de todos</h4>
+      <input className="field" style={{ marginTop: ".4rem" }} placeholder="Imagem (link https, opcional)" value={img} onChange={(e) => setImg(e.target.value)} />
+      <input className="field" style={{ marginTop: ".3rem" }} placeholder="Título (ex.: O Mapa do Contrabandista)" value={title} onChange={(e) => setTitle(e.target.value)} />
+      <textarea className="field" style={{ marginTop: ".3rem" }} rows={2} placeholder="Texto (opcional)" value={text} onChange={(e) => setText(e.target.value)} />
+      <button className="btn sm" style={{ marginTop: ".4rem" }} disabled={!img.trim() && !title.trim() && !text.trim()}
+        onClick={async () => { if (await R.chat(`/revelar ${/^https:\/\//.test(img.trim()) ? img.trim() + " " : ""}${title.trim() || "Revelação"} | ${text.trim()}`)) { setImg(""); setTitle(""); setText("") } }}>
+        <Icon n="eye" size={12} /> Revelar
+      </button>
     </div>
   )
 }

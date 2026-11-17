@@ -2,7 +2,7 @@ import { randomInt } from "node:crypto"
 import { sql } from "./db"
 import { looksLikeRoll, rollExpr } from "./dice"
 import type { Ctx } from "./room"
-import { EMPTY_INIT, norm, type Cond, type InitState, type Member, type Sheet, type Template } from "./types"
+import { AMBIENCES, EMPTY_INIT, norm, type Cond, type InitState, type Member, type Sheet, type Template } from "./types"
 
 export type Out = { ok?: true; error?: string }
 type World = { sheets: Sheet[]; members: Member[] }
@@ -331,8 +331,26 @@ export async function handleChat(c: Ctx, raw: string): Promise<Out> {
       await post(c, { kind: "system", body: `À mesa: ${list}`, to: c.me.id, data: { icon: "users" } })
       return { ok: true }
     }
+    case "revelar": case "mostrar": {
+      if (!c.isGM) return { error: "Só o mestre faz revelações." }
+      const m = /^(https:\/\/\S+)?\s*([\s\S]*)$/.exec(arg)!
+      const image = m[1] ?? "", text = (m[2] ?? "").trim()
+      if (!image && !text) return { error: "Use /revelar https://imagem.jpg Texto (imagem e/ou texto)." }
+      const [title, ...rest] = text.split("|")
+      await post(c, { kind: "reveal", speaker: "Revelação", body: rest.join("|").trim(), data: { image, title: title.trim() } })
+      return { ok: true }
+    }
+    case "trilha": case "musica": case "ambiente": {
+      if (!c.isGM) return { error: "Só o mestre escolhe a trilha." }
+      const id = norm(arg).replace("silencio", "")
+      const a = AMBIENCES.find((x) => x.id === id || norm(x.name).startsWith(id))
+      if (!a || (arg && !a.id && id)) return { error: `Trilhas: ${AMBIENCES.map((x) => x.id || "silencio").join(", ")}.` }
+      await sql`UPDATE rooms SET ambience = ${a.id} WHERE id = ${c.room.id}`
+      await post(c, { kind: "system", body: a.id ? `Ao fundo: ${a.name}.` : "A trilha silencia.", data: { icon: a.icon } })
+      return { ok: true }
+    }
     case "ajuda": case "help": case "comandos":
-      await post(c, { kind: "system", to: c.me.id, data: { icon: "help" }, body: "Comandos: /r /sr /me /w /ooc /grito /moeda /oraculo /pv /dano /cura /descansar /status /init /proximo /cond /quem /gm — e, para o mestre, /n /npc /cena /desfazer. A aba ? do painel esquerdo explica cada um." })
+      await post(c, { kind: "system", to: c.me.id, data: { icon: "help" }, body: "Comandos: /r /sr /me /w /ooc /grito /moeda /oraculo /pv /dano /cura /descansar /status /init /proximo /cond /quem /gm — e, para o mestre, /n /npc /cena /revelar /trilha /desfazer. A aba ? do painel esquerdo explica cada um." })
       return { ok: true }
     default:
       return changeAttr(c, w, cmd, arg)

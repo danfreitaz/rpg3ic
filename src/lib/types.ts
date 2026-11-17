@@ -11,10 +11,30 @@ export type InitState = { on: boolean; round: number; turn: number; order: InitE
 export type Cond = { n: string; r: number | null }
 
 export type Room = {
-  id: string; code: string; name: string; owner_id: string; gm_locked: boolean; public: boolean
+  id: string; code: string; name: string; owner_id: string; gm_locked: boolean; public: boolean; ambience: string
   skin: string; scene: string; map: MapState; init: InitState; templates: Template[]
 }
-export type Member = { id: string; name: string; role: "gm" | "player"; color: string; sheet_id: string | null }
+export type Macro = { name: string; text: string }
+export type Member = { id: string; name: string; role: "gm" | "player"; color: string; sheet_id: string | null; macros?: Macro[] }
+
+export const SKINS = [
+  { id: "medieval", name: "Taverna", hint: "Madeira, pergaminho e ouro" },
+  { id: "minimal", name: "Minimalista", hint: "Papel claro, tinta e silêncio" },
+  { id: "modern", name: "Contemporânea", hint: "Vidro fosco e cores vivas" },
+  { id: "scifi", name: "Ficção científica", hint: "Neon, grade e terminal" },
+  { id: "mirc", name: "mIRC retrô", hint: "Windows 98 e salas de chat" },
+] as const
+
+export const AMBIENCES = [
+  { id: "", name: "Silêncio", icon: "mute" },
+  { id: "taverna", name: "Taverna", icon: "flame" },
+  { id: "chuva", name: "Chuva e trovões", icon: "cloud" },
+  { id: "floresta", name: "Floresta", icon: "star" },
+  { id: "masmorra", name: "Masmorra", icon: "skull" },
+  { id: "batalha", name: "Batalha", icon: "sword" },
+  { id: "mar", name: "Mar e porto", icon: "map" },
+  { id: "vento", name: "Ventania", icon: "move" },
+] as const
 export type Sheet = {
   id: string; template_id: string; kind: "pc" | "npc" | "creature"; owner_member: string | null
   name: string; avatar: string; data: Record<string, any>; hidden: boolean

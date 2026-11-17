@@ -2,8 +2,8 @@
 import Link from "next/link"
 import { useEffect, useRef, useState } from "react"
 import { Icon, Seal } from "@/components/Icon"
-import { setSoundOn, sfx, soundOn } from "@/components/sound"
-import { COLORS, type Msg } from "@/lib/types"
+import { ambienceVolume, playAmbience, setAmbienceVolume, setSoundOn, sfx, soundOn, stopAmbience, unlockAudio } from "@/components/sound"
+import { AMBIENCES, COLORS, SKINS, type Msg } from "@/lib/types"
 import { Chat } from "./Chat"
 import { initials, useRoom } from "./ctx"
 import { DiceStage } from "./DiceStage"
@@ -15,6 +15,20 @@ export function Table({ live }: { live: boolean }) {
   const [sound, setSound] = useState(true)
   const [modal, setModal] = useState<"room" | "me" | null>(null)
   const [toss, setToss] = useState<Msg | null>(null)
+  const [reveal, setReveal] = useState<Msg | null>(null)
+  const [skinPick, setSkinPick] = useState<string>("")
+  const [ambOpen, setAmbOpen] = useState(false)
+  useEffect(() => { try { setSkinPick(localStorage.getItem("r3_skin") || "") } catch {} }, [])
+  const skin = skinPick || R.room.skin || "medieval"
+  useEffect(() => { document.documentElement.dataset.skin = skin }, [skin])
+  useEffect(() => () => { document.documentElement.dataset.skin = (() => { try { return localStorage.getItem("r3_skin") || "medieval" } catch { return "medieval" } })(); stopAmbience() }, [])
+  // Trilha ambiente da sala (o navegador só libera o som depois do primeiro clique)
+  useEffect(() => { if (sound) playAmbience(R.room.ambience); else stopAmbience() }, [R.room.ambience, sound])
+  useEffect(() => {
+    const go = () => { unlockAudio(); if (soundOn()) playAmbience(R.room.ambience) }
+    window.addEventListener("pointerdown", go, { once: true })
+    return () => window.removeEventListener("pointerdown", go)
+  }, [R.room.ambience])
   const seen = useRef<number>(-1)
 
   useEffect(() => setSound(soundOn()), [])
@@ -40,6 +54,7 @@ export function Table({ live }: { live: boolean }) {
       else if (m.kind === "oracle") sfx.narration()
       else if (m.kind === "shout") sfx.damage()
       else if (m.kind === "scene") sfx.door()
+      else if (m.kind === "reveal") { sfx.narration(); sfx.paper(); setReveal(m) }
       else if (m.kind === "system") m.data?.icon === "door" ? sfx.door() : sfx.paper()
       else if (m.member_id !== R.me.id) sfx.msg()
     }
@@ -83,6 +98,10 @@ export function Table({ live }: { live: boolean }) {
         <span className="sep" />
         <button className={"iconbtn " + (R.isGM ? "on" : "")} title={R.isGM ? "Você é mestre — clique para virar jogador" : R.room.gm_locked && !R.me.owner ? "Posto de mestre travado" : "Assumir o posto de mestre"}
           onClick={() => R.act("role.set", { role: R.isGM ? "player" : "gm" })}><Icon n="crown" /></button>
+        <div className="amb-wrap">
+          <button className={"iconbtn " + (R.room.ambience ? "on" : "")} title="Trilha ambiente" onClick={() => setAmbOpen((o) => !o)}><Icon n={AMBIENCES.find((a) => a.id === R.room.ambience)?.icon ?? "bell"} /></button>
+          {ambOpen && <AmbienceMenu onClose={() => setAmbOpen(false)} />}
+        </div>
         <button className="iconbtn" title={sound ? "Silenciar" : "Ligar sons"} onClick={() => { setSoundOn(!sound); setSound(!sound); if (!sound) sfx.click() }}><Icon n={sound ? "sound" : "mute"} /></button>
         {(R.isGM || R.me.owner) && <button className="iconbtn" title="Configurar a sala" onClick={() => setModal("room")}><Icon n="gear" /></button>}
         <button className="me-pill" onClick={() => setModal("me")} title="Seu perfil na mesa">
@@ -100,7 +119,8 @@ export function Table({ live }: { live: boolean }) {
 
       <DiceStage msg={toss} onDone={() => setToss(null)} />
       {modal === "room" && <RoomSettings onClose={() => setModal(null)} />}
-      {modal === "me" && <MeSettings onClose={() => setModal(null)} />}
+      {modal === "me" && <MeSettings onClose={() => setModal(null)} skinPick={skinPick} setSkinPick={(s) => { setSkinPick(s); try { s ? localStorage.setItem("r3_skin", s) : localStorage.removeItem("r3_skin") } catch {} }} />}
+      {reveal && <RevealView m={reveal} onClose={() => setReveal(null)} />}
     </div>
   )
 }
@@ -132,6 +152,8 @@ function RoomSettings({ onClose }: { onClose: () => void }) {
       <input className="field" value={name} onChange={(e) => setName(e.target.value)} />
       <label className="lbl">Cena atual (aparece no topo)</label>
       <input className="field" value={scene} onChange={(e) => setScene(e.target.value)} placeholder="Ex.: Taverna do Javali Torto, noite chuvosa" />
+      <label className="lbl">Visual da mesa (padrão para todos)</label>
+      <SkinGrid value={R.room.skin} onPick={(id) => R.act("room.set", { skin: id })} />
       <div className="row" style={{ marginTop: ".8rem" }}>
         <button className="btn" onClick={async () => { if (await R.act("room.set", { name, scene })) { R.toast("Sala atualizada.", true); onClose() } }}><Icon n="check" size={14} /> Salvar</button>
       </div>
@@ -176,7 +198,7 @@ function RoomSettings({ onClose }: { onClose: () => void }) {
   )
 }
 
-function MeSettings({ onClose }: { onClose: () => void }) {
+function MeSettings({ onClose, skinPick, setSkinPick }: { onClose: () => void; skinPick: string; setSkinPick: (s: string) => void }) {
   const R = useRoom()
   const [name, setName] = useState(R.me.name)
   return (
@@ -189,6 +211,8 @@ function MeSettings({ onClose }: { onClose: () => void }) {
           <button key={c} onClick={() => R.act("me.set", { color: c })} className="dot lg" style={{ background: c, border: 0, cursor: "pointer", outline: c === R.me.color ? "3px solid var(--gold-hi)" : undefined }} aria-label={c} />
         ))}
       </div>
+      <label className="lbl">Visual só para você</label>
+      <SkinGrid value={skinPick} follow={R.room.skin} onPick={setSkinPick} />
       <div className="row" style={{ marginTop: "1rem" }}>
         <button className="btn" onClick={async () => { if (await R.act("me.set", { name })) onClose() }}><Icon n="check" size={14} /> Salvar</button>
         <span className="grow" />
@@ -196,5 +220,68 @@ function MeSettings({ onClose }: { onClose: () => void }) {
       </div>
       {!R.me.account && <p className="faint" style={{ fontSize: ".85rem" }}>Você está como convidado neste navegador. Com conta, suas mesas ficam salvas em qualquer lugar.</p>}
     </Modal>
+  )
+}
+
+function SkinGrid({ value, follow, onPick }: { value: string; follow?: string; onPick: (id: string) => void }) {
+  const opts = follow !== undefined ? [{ id: "", name: "Seguir a sala", hint: `Usa o visual que o mestre escolheu (${SKINS.find((s) => s.id === follow)?.name ?? "Taverna"})` }, ...SKINS] : SKINS
+  return (
+    <div className="skin-grid">
+      {opts.map((s) => (
+        <button key={s.id || "follow"} className={"skin-opt " + (value === s.id ? "on" : "")} onClick={() => { sfx.click(); onPick(s.id) }}>
+          <span className={"skin-swatch sw-" + (s.id || follow || "medieval")}><i /><i /><i /></span>
+          <b>{s.name}</b><small>{s.hint}</small>
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function AmbienceMenu({ onClose }: { onClose: () => void }) {
+  const R = useRoom()
+  const [vol, setVol] = useState(0.5)
+  useEffect(() => setVol(ambienceVolume()), [])
+  useEffect(() => {
+    const k = (e: MouseEvent) => { if (!(e.target as HTMLElement).closest(".amb-wrap")) onClose() }
+    setTimeout(() => window.addEventListener("mousedown", k), 0)
+    return () => window.removeEventListener("mousedown", k)
+  }, [onClose])
+  return (
+    <div className="amb-menu rise">
+      <div className="sec-title" style={{ marginTop: 0 }}>Trilha ambiente</div>
+      {R.isGM ? (
+        <div className="amb-list">
+          {AMBIENCES.map((a) => (
+            <button key={a.id || "none"} className={"amb-opt " + (R.room.ambience === a.id ? "on" : "")} onClick={() => R.act("room.set", { ambience: a.id })}>
+              <Icon n={a.icon} size={15} /> {a.name}
+            </button>
+          ))}
+        </div>
+      ) : (
+        <p className="muted" style={{ margin: "0 0 .4rem" }}>Tocando: <b>{AMBIENCES.find((a) => a.id === R.room.ambience)?.name ?? "Silêncio"}</b>. Quem escolhe a trilha é o mestre.</p>
+      )}
+      <label className="lbl">Seu volume</label>
+      <input type="range" min={0} max={1} step={0.05} value={vol} onChange={(e) => { const v = Number(e.target.value); setVol(v); setAmbienceVolume(v) }} style={{ width: "100%", accentColor: "var(--gold)" }} />
+      <p className="faint" style={{ fontSize: ".78rem", margin: ".3rem 0 0" }}>Tudo sintetizado na hora, sem baixar nada. Se não ouvir, clique em qualquer lugar da página.</p>
+    </div>
+  )
+}
+
+function RevealView({ m, onClose }: { m: Msg; onClose: () => void }) {
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => e.key === "Escape" && onClose()
+    window.addEventListener("keydown", k)
+    return () => window.removeEventListener("keydown", k)
+  }, [onClose])
+  return (
+    <div className="reveal-back" onMouseDown={onClose}>
+      <div className="reveal-card" onMouseDown={(e) => e.stopPropagation()}>
+        <div className="reveal-glow" />
+        {m.data?.title && <h2 className="title-deco">{m.data.title}</h2>}
+        {m.data?.image && <img src={m.data.image} alt={m.data?.title || "Revelação"} />}
+        {m.body && <p>{m.body}</p>}
+        <button className="btn" onClick={onClose}><Icon n="check" size={14} /> Continuar</button>
+      </div>
+    </div>
   )
 }
