@@ -261,3 +261,6 @@ html[data-skin="mirc"] .ctx-menu { box-shadow: var(--btn-shadow), 3px 3px 0 rgba
 html[data-skin="mirc"] .ctx-item.hi, html[data-skin="mirc"] .ctx-item:hover { background: #000080; color: #fff; }
 html[data-skin="mirc"] .ctx-item.hi .ic, html[data-skin="mirc"] .ctx-item:hover .ic { color: #fff; }
 html[data-skin="scifi"] .ctx-menu { box-shadow: 0 0 18px rgba(0,240,255,.25); }
+html:not([data-skin="medieval"]) .skin-pop { background: var(--pop-bg); border-color: var(--line); border-radius: var(--radius); }
+html:not([data-skin="medieval"]) .skin-picker > .btn { background: var(--pop-bg); }
+html[data-skin="mirc"] .skin-pop { box-shadow: var(--btn-shadow); border: 0; }

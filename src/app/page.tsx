@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react"
 import { Flourish, Icon, Seal } from "@/components/Icon"
 import { sfx } from "@/components/sound"
 import { authClient } from "@/lib/authClient"
+import { SKINS } from "@/lib/types"
 import { openMenu } from "@/components/ContextMenu"
 
 type RoomRow = { code: string; name: string; scene: string; role: string; mine: boolean; people: number }
@@ -30,6 +31,14 @@ export default function Home() {
   const [err, setErr] = useState("")
   const [busy, setBusy] = useState(false)
   const [copied, setCopied] = useState("")
+  const [skin, setSkin] = useState("")
+  const [skinOpen, setSkinOpen] = useState(false)
+  useEffect(() => { try { setSkin(localStorage.getItem("r3_skin") || "") } catch {} }, [])
+  const pickSkin = (id: string) => {
+    sfx.click(); setSkin(id)
+    try { id ? localStorage.setItem("r3_skin", id) : localStorage.removeItem("r3_skin") } catch {}
+    document.documentElement.dataset.skin = id || "medieval"
+  }
   const boxes = useRef<(HTMLInputElement | null)[]>([])
 
   useEffect(() => {
@@ -82,6 +91,30 @@ export default function Home() {
 
   return (
     <main className="home">
+      <div className="skin-picker">
+        <button className="btn ghost sm" onClick={() => setSkinOpen((o) => !o)} title="Trocar o visual do site">
+          <Icon n="palette" size={14} /> Visual: {SKINS.find((s) => s.id === (skin || "medieval"))?.name}{!skin && " (padrão)"}
+        </button>
+        {skinOpen && (
+          <div className="skin-pop rise">
+            <div className="sec-title" style={{ marginTop: 0 }}>Escolha o visual</div>
+            <div className="skin-grid">
+              {SKINS.map((s) => (
+                <button key={s.id} className={"skin-opt " + (skin === s.id ? "on" : "")} onClick={() => pickSkin(s.id)}>
+                  <span className={"skin-swatch sw-" + s.id}><i /><i /><i /></span>
+                  <b>{s.name}</b><small>{s.hint}</small>
+                </button>
+              ))}
+              <button className={"skin-opt " + (!skin ? "on" : "")} onClick={() => pickSkin("")}>
+                <span className="skin-swatch sw-medieval" style={{ opacity: .55 }}><i /><i /><i /></span>
+                <b>Cada sala decide</b><small>Usa o visual que o mestre escolheu em cada mesa</small>
+              </button>
+            </div>
+            <p className="faint" style={{ fontSize: ".78rem", margin: ".5rem 0 0" }}>Fica salvo neste navegador e vale também dentro das salas. Dá para trocar depois clicando no seu nome na mesa.</p>
+          </div>
+        )}
+      </div>
+
       <div className="embers" aria-hidden>{Array.from({ length: 14 }, (_, i) => <i key={i} style={{ left: `${(i * 37) % 100}%`, animationDelay: `${(i * 0.9) % 7}s`, animationDuration: `${7 + (i % 5)}s` }} />)}</div>
 
       {last && (

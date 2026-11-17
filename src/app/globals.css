@@ -659,3 +659,6 @@ html:not([data-skin="medieval"]) .theme-light .modal-back .field option { backgr
 .ctx-item.danger.hi, .ctx-item.danger:hover { background: rgba(163,54,42,.25); }
 .ctx-item:disabled { opacity: .4; cursor: default; background: none; }
 .ctx-sep { height: 1px; margin: .25rem .4rem; background: var(--line-soft); }
+.skin-picker { position: fixed; top: 14px; right: 18px; z-index: 40; }
+.skin-picker > .btn { backdrop-filter: blur(6px); background: rgba(20, 13, 8, .6); }
+.skin-pop { position: absolute; top: calc(100% + 8px); right: 0; width: 470px; padding: .9rem; border-radius: 10px; background: #1f150e; border: 1px solid var(--gold-lo); box-shadow: var(--shadow); color: var(--ink); }
