@@ -12,7 +12,7 @@ function query(name: LiveName, roomId: string, memberId: string) {
   switch (name) {
     case "room":
       return rawSql<any>(
-        `SELECT id, code, name, owner_id, gm_locked, skin, scene, map, init, templates FROM rooms WHERE id = $1`,
+        `SELECT id, code, name, owner_id, gm_locked, public, skin, scene, map, init, templates FROM rooms WHERE id = $1`,
         [roomId]
       )
     case "members":

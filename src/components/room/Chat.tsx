@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { Flourish, Icon } from "@/components/Icon"
 import type { Msg } from "@/lib/types"
 import { hhmm, initials, useRoom } from "./ctx"
+import { sfx } from "@/components/sound"
 
 const COMMANDS: { c: string; d: string; gm?: boolean }[] = [
   { c: "/r 1d20+FOR", d: "Rola dados (soma atributos da sua ficha)" },
@@ -21,7 +22,31 @@ const COMMANDS: { c: string; d: string; gm?: boolean }[] = [
   { c: "/npc Nome: fala", d: "Fala como NPC ou criatura", gm: true },
   { c: "/desfazer", d: "Desfaz a última mudança de atributo", gm: true },
   { c: "/gm", d: "Assume ou deixa o posto de mestre" },
+  { c: "/dano @alvo 8", d: "Tira vida (a primeira barra da ficha)" },
+  { c: "/cura @alvo 5", d: "Devolve vida, sem passar do máximo" },
+  { c: "/descansar @alvo", d: "Enche todas as barras (@todos para o grupo)" },
+  { c: "/status @alvo", d: "Mostra o resumo da ficha no chat" },
+  { c: "/moeda", d: "Cara ou coroa" },
+  { c: "/oraculo vai chover?", d: "Pergunta de sim/não ao destino (2d6)" },
+  { c: "/ooc texto", d: "Fala fora do personagem (ou ((entre parênteses duplos)))" },
+  { c: "/grito texto", d: "Grita, em letras garrafais" },
+  { c: "/quem", d: "Quem está à mesa (só você vê)" },
+  { c: "/ajuda", d: "Lista os comandos (só você vê)" },
+  { c: "/cena Porto de Arcadia, ao entardecer", d: "Muda a cena do topo e anuncia", gm: true },
 ]
+
+const DIE: Record<number, string> = {
+  4: "12,2 22,20 2,20", 6: "3,3 21,3 21,21 3,21", 8: "12,1 23,12 12,23 1,12",
+  10: "12,1 22,9 18,22 6,22 2,9", 12: "12,1 22,7 22,17 12,23 2,17 2,7", 20: "12,1 22,6.5 22,17.5 12,23 2,17.5 2,6.5", 100: "12,1 22,9 18,22 6,22 2,9",
+}
+function DieIcon({ sides }: { sides: number }) {
+  return <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden><polygon points={DIE[sides]} fill="currentColor" fillOpacity=".18" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" /></svg>
+}
+const poolExpr = (pool: Record<number, number>, mod: number) => {
+  const parts = Object.entries(pool).filter(([, n]) => n > 0).sort((a, b) => Number(a[0]) - Number(b[0])).map(([s, n]) => `${n}d${s}`)
+  if (!parts.length) return ""
+  return parts.join("+") + (mod ? (mod > 0 ? `+${mod}` : `${mod}`) : "")
+}
 
 export function Chat() {
   const R = useRoom()
@@ -31,6 +56,22 @@ export function Chat() {
   const [hpos, setHpos] = useState(-1)
   const [hi, setHi] = useState(0)
   const [sending, setSending] = useState(false)
+  const [pool, setPool] = useState<Record<number, number>>({})
+  const [mod, setMod] = useState(0)
+  const autoText = useRef("")
+  const expr = poolExpr(pool, mod)
+  useEffect(() => {
+    // A bandeja escreve no campo de fala; se o jogador já escreveu outra coisa, não pisa nela.
+    const next = expr ? `/r ${expr}` : ""
+    setText((t) => (t === "" || t === autoText.current ? next : t))
+    autoText.current = next
+  }, [expr])
+  const addDie = (sides: number, d = 1) => {
+    sfx.click()
+    setPool((p) => { const n = Math.max(0, Math.min(20, (p[sides] ?? 0) + d)); const q = { ...p, [sides]: n }; if (!n) delete q[sides]; return q })
+    inputRef.current?.focus()
+  }
+  const clearPool = () => { setPool({}); setMod(0) }
   const logRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const stick = useRef(true)
@@ -71,7 +112,7 @@ export function Chat() {
     setSending(true)
     const ok = await R.chat(t)
     setSending(false)
-    if (ok && !raw) { setHist((h) => [text, ...h].slice(0, 50)); setText(""); setHpos(-1); stick.current = true }
+    if (ok && !raw) { setHist((h) => [text, ...h].slice(0, 50)); autoText.current = ""; setText(""); clearPool(); setHpos(-1); stick.current = true }
     inputRef.current?.focus()
   }
 
@@ -88,10 +129,10 @@ export function Chat() {
     if (e.key === "ArrowDown" && hpos >= 0) { e.preventDefault(); const p = hpos - 1; setHpos(p); setText(p < 0 ? "" : hist[p]) }
   }
 
-  const rollQuick = (d: string) => send(`/r ${d}`)
 
   return (
     <section className="frame chat">
+      <span className="corner-tr" /><span className="corner-bl" />
       <div className="chat-head">
         <Icon n="scroll" />
         <h3 style={{ fontSize: ".95rem" }} className="grow">Crônica da mesa</h3>
@@ -112,15 +153,31 @@ export function Chat() {
           </div>
         )}
         <div className="dicebar">
-          {["d4", "d6", "d8", "d10", "d12", "d20", "d100"].map((d) => (
-            <button key={d} className="dbtn" onClick={() => rollQuick("1" + d)} title={`Rolar 1${d}`}><Icon n={d === "d6" ? "d6" : "d20"} size={13} />{d}</button>
+          {[4, 6, 8, 10, 12, 20, 100].map((d) => (
+            <button key={d} className={"dbtn die-btn " + (pool[d] ? "on" : "")} onClick={() => addDie(d)} onContextMenu={(e) => { e.preventDefault(); addDie(d, -1) }} title={`Clique: põe 1d${d} na bandeja · botão direito: tira`}>
+              <DieIcon sides={d} />d{d}
+              {pool[d] ? <span className="die-count">{pool[d]}</span> : null}
+            </button>
           ))}
-          <button className="dbtn" onClick={() => rollQuick("2d20kh1 #Vantagem")} title="2d20, fica o maior">vant.</button>
-          <button className="dbtn" onClick={() => rollQuick("2d20kl1 #Desvantagem")} title="2d20, fica o menor">desv.</button>
-          <button className="dbtn" onClick={() => send("/sr 1d20")} title="Só você e o mestre veem"><Icon n="eyeoff" size={13} />secreta</button>
+          <span className="sep-v" />
+          <button className="dbtn" onClick={() => setMod((m) => m - 1)} title="Modificador −1">−1</button>
+          <button className="dbtn" onClick={() => setMod((m) => m + 1)} title="Modificador +1">+1</button>
           <span className="grow" />
-          {mySheet && <span className="chip gold" title="Ficha ativa: atributos dela entram nas rolagens"><Icon n="scroll" size={11} /> {mySheet.name}</span>}
+          <button className="dbtn" onClick={() => send("/r 2d20kh1 #Vantagem")} title="2d20, fica o maior">vant.</button>
+          <button className="dbtn" onClick={() => send("/r 2d20kl1 #Desvantagem")} title="2d20, fica o menor">desv.</button>
+          <button className="dbtn" onClick={() => { send(`/sr ${expr || "1d20"}`); clearPool(); autoText.current = ""; setText("") }} title="Só você e o mestre veem"><Icon n="eyeoff" size={13} />secreta</button>
         </div>
+        {expr && (
+          <div className="tray rise">
+            <Icon n="d20" size={15} />
+            <span className="tray-expr">{expr}</span>
+            <span className="faint" style={{ fontSize: ".8rem" }}>na bandeja · Enter rola</span>
+            <span className="grow" />
+            <button className="btn sm" onClick={() => send()}><Icon n="d20" size={12} /> Rolar</button>
+            <button className="iconbtn sm" onClick={() => { clearPool() }} title="Esvaziar a bandeja"><Icon n="x" size={13} /></button>
+          </div>
+        )}
+        {mySheet && <div className="active-sheet"><Icon n="scroll" size={11} /> falando e rolando como <b>{mySheet.name}</b></div>}
         <div className="inputrow">
           {R.isGM && (
             <select className="field voice" value={voice} onChange={(e) => setVoice(e.target.value)} title="Falar como…">
@@ -147,13 +204,15 @@ function Avatar({ m }: { m: Msg }) {
 
 function Line({ m, prev }: { m: Msg; prev?: Msg }) {
   const R = useRoom()
-  if (m.kind === "system") return <div className="sys"><Icon n={m.data?.icon || "star"} size={14} />{m.body}</div>
+  if (m.kind === "system") return <div className={"sys " + (m.to_member ? "private" : "")}><Icon n={m.data?.icon || "star"} size={14} />{m.body}{m.to_member && <span className="chip violet" style={{ marginLeft: ".3rem" }}>só você</span>}</div>
+  if (m.kind === "ooc") return <div className="ooc"><span className="who" style={{ color: m.color }}>{m.speaker}</span> <span className="faint">(fora do jogo)</span> {m.body}</div>
+  if (m.kind === "scene") return <div className="scene-card"><Icon n="castle" size={16} /><span>{m.body}</span></div>
   if (m.kind === "narration") return <div className="parch narr"><Flourish />{m.body}</div>
   if (m.kind === "turn") return <div className="turnbar"><Icon n="hourglass" size={15} /> Rodada {m.data?.round} · vez de {m.data?.name}</div>
 
   const cont = !!prev && prev.speaker === m.speaker && prev.kind === m.kind && ["say", "action"].includes(m.kind) && !prev.to_member && !m.to_member &&
     new Date(m.created_at).getTime() - new Date(prev.created_at).getTime() < 120000
-  const cls = ["msg", m.kind, m.data?.npc ? "npc" : "", cont ? "cont" : ""].join(" ")
+  const cls = ["msg", m.kind, m.kind === "shout" ? "say" : "", m.data?.npc ? "npc" : "", cont ? "cont" : ""].join(" ")
   const toName = m.to_member ? R.memberById(m.to_member)?.name ?? m.data?.to : null
 
   return (
@@ -169,7 +228,7 @@ function Line({ m, prev }: { m: Msg; prev?: Msg }) {
             <span className="time">{hhmm(m.created_at)}</span>
           </div>
         )}
-        {m.kind === "roll" ? <RollCard m={m} /> : m.kind === "change" ? <Changes m={m} /> : <div className="body">{m.body}</div>}
+        {m.kind === "roll" ? <RollCard m={m} /> : m.kind === "change" ? <Changes m={m} /> : m.kind === "coin" ? <Coin m={m} /> : m.kind === "oracle" ? <Oracle m={m} /> : m.kind === "status" ? <Status m={m} /> : <div className="body">{m.body}</div>}
       </div>
     </div>
   )
@@ -217,6 +276,49 @@ function Changes({ m }: { m: Msg }) {
           </div>
         )
       })}
+    </div>
+  )
+}
+
+function Coin({ m }: { m: Msg }) {
+  return (
+    <div className="rollcard coin-card">
+      <div className="row">
+        <span className={"coin " + (m.data?.face === "Cara" ? "heads" : "tails")}>{m.data?.face === "Cara" ? "☉" : "♛"}</span>
+        <div className="grow">{m.body && <div className="lbl2">{m.body}</div>}<div className="expr">moeda ao ar…</div></div>
+        <span className="total">{m.data?.face}</span>
+      </div>
+    </div>
+  )
+}
+
+function Oracle({ m }: { m: Msg }) {
+  const t = m.data?.t ?? 7
+  return (
+    <div className={"rollcard oracle " + (t >= 11 ? "crit" : t <= 3 ? "fumble" : "")}>
+      <div className="lbl2"><Icon n="eye" size={12} /> Oráculo</div>
+      <div style={{ fontStyle: "italic" }}>“{m.body}”</div>
+      <div className="dice-row">
+        <span className="die">{m.data?.a}</span><span className="mod">+</span><span className="die">{m.data?.b}</span>
+        <span className="total" style={{ fontSize: "1.05rem" }}>{m.data?.answer}</span>
+      </div>
+    </div>
+  )
+}
+
+function Status({ m }: { m: Msg }) {
+  const d = m.data ?? {}
+  return (
+    <div className="rollcard status-card">
+      {(d.bars ?? []).map((b: any) => (
+        <div key={b.label} className="row" style={{ gap: ".4rem", fontSize: ".85rem" }}>
+          <span style={{ width: 110 }} className="muted">{b.label}</span>
+          <div className="mini-bar grow" style={{ height: 8, margin: 0 }}><i style={{ width: (b.m ? Math.max(0, Math.min(100, (b.v / b.m) * 100)) : 0) + "%" }} /></div>
+          <b className="mono" style={{ fontSize: ".78rem" }}>{b.v}/{b.m}</b>
+        </div>
+      ))}
+      {(d.nums ?? []).length > 0 && <div className="row wrap" style={{ gap: ".25rem" }}>{d.nums.map((n: any) => <span key={n.label} className="chip">{n.label} {n.v}</span>)}</div>}
+      {(d.conds ?? []).length > 0 && <div className="row wrap" style={{ gap: ".25rem" }}>{d.conds.map((c: any) => <span key={c.n} className="chip violet">{c.n}</span>)}</div>}
     </div>
   )
 }

@@ -1,3 +1,4 @@
+import { randomInt } from "node:crypto"
 import { sql } from "./db"
 import { looksLikeRoll, rollExpr } from "./dice"
 import type { Ctx } from "./room"
@@ -19,6 +20,7 @@ export async function post(c: Ctx, m: NewMsg) {
   await sql`INSERT INTO messages (room_id, member_id, kind, speaker, color, body, data, to_member, secret)
     VALUES (${c.room.id}, ${c.me.id}, ${m.kind}, ${m.speaker ?? c.me.name}, ${m.color ?? c.me.color}, ${m.body ?? ""},
             ${m.data ? JSON.stringify(m.data) : null}::jsonb, ${m.to ?? null}, ${m.secret ?? false})`
+  await sql`UPDATE rooms SET last_active = now() WHERE id = ${c.room.id} AND last_active < now() - interval '2 minutes'`
 }
 
 const MENTION = /@([\wÀ-ÿ-]+)/g
@@ -211,6 +213,8 @@ export async function handleChat(c: Ctx, raw: string): Promise<Out> {
   const w = await load(c)
   if (!text.startsWith("/")) {
     if (looksLikeRoll(text)) { const r = await doRoll(c, w, text, false); if (!r.error) return { ok: true } }
+    const ooc = /^\(\(([\s\S]+)\)\)$/.exec(text)
+    if (ooc) { await post(c, { kind: "ooc", body: ooc[1].trim() }); return { ok: true } }
     const act = /^\*([^*]+)\*$/.exec(text)
     return act ? say(c, w, "action", act[1].trim()) : say(c, w, "say", text)
   }
@@ -262,6 +266,74 @@ export async function handleChat(c: Ctx, raw: string): Promise<Out> {
       return doCond(c, w, arg)
     case "gm": case "mestre":
       return setRole(c, c.isGM ? "player" : "gm")
+    case "moeda": case "coin": {
+      const face = randomInt(0, 2) === 0 ? "Cara" : "Coroa"
+      await post(c, { kind: "coin", body: arg, speaker: voice(c, w), data: { face, by: c.me.name } })
+      return { ok: true }
+    }
+    case "oraculo": case "sorte": case "destino": {
+      const a = randomInt(1, 7), b = randomInt(1, 7), t = a + b
+      const answer = t <= 3 ? "Não, e ainda piora…" : t <= 5 ? "Não." : t <= 6 ? "Não, mas…" : t === 7 ? "Talvez… os ventos hesitam." : t === 8 ? "Sim, mas…" : t <= 10 ? "Sim." : "Sim, e ainda melhor!"
+      await post(c, { kind: "oracle", body: arg || "O destino foi consultado.", speaker: voice(c, w), data: { a, b, t, answer, by: c.me.name } })
+      return { ok: true }
+    }
+    case "dano": case "ferir": case "cura": case "curar": {
+      const heal = cmd.startsWith("cur")
+      const { mentions, rest } = splitMentions(arg)
+      if (!/^\d+$/.test(rest)) return { error: `Use /${cmd} @alvo N (ex.: /${cmd} @Lyra 8).` }
+      const targets = (mentions.length ? mentions.flatMap((m) => resolveSheets(c, w, m)) : [mySheet(c, w)].filter(Boolean)) as Sheet[]
+      if (!targets.length) return { error: "Não achei o alvo." }
+      const t = c.room.templates.find((x) => x.id === targets[0].template_id)
+      const bar = t?.fields.find((f) => f.type === "bar")
+      if (!bar) return { error: "Essa ficha não tem barra de vida." }
+      return changeAttr(c, w, bar.key, `${targets.map((s) => "@" + s.name.replace(/\s+/g, "")).join(" ")} ${heal ? "+" : "-"}${rest}`)
+    }
+    case "descansar": case "descanso": {
+      const { mentions } = splitMentions(arg)
+      const targets = (mentions.length ? mentions.flatMap((m) => resolveSheets(c, w, m)) : [mySheet(c, w)].filter(Boolean)) as Sheet[]
+      if (!targets.length) return { error: "Use /descansar @alvo (ou /descansar @todos)." }
+      for (const s of targets) {
+        if (!canEdit(c, s)) return { error: `Só o mestre pode fazer ${s.name} descansar.` }
+        const t = c.room.templates.find((x) => x.id === s.template_id)
+        const patch: Record<string, number> = {}
+        for (const f of t?.fields ?? []) if (f.type === "bar") patch[f.key] = Number(s.data?.[f.key + "_max"] ?? 0)
+        await sql`INSERT INTO undo_log (room_id, label, sheet_id, prev) VALUES (${c.room.id}, ${`descanso de ${s.name}`}, ${s.id}, ${JSON.stringify(s.data)}::jsonb)`
+        await sql`UPDATE sheets SET data = data || ${JSON.stringify(patch)}::jsonb WHERE id = ${s.id}`
+      }
+      await post(c, { kind: "system", body: `${targets.map((s) => s.name).join(", ")} descansa${targets.length > 1 ? "m" : ""} e recupera${targets.length > 1 ? "m" : ""} as forças.`, data: { icon: "heart" } })
+      return { ok: true }
+    }
+    case "status": case "ficha": {
+      const { mentions } = splitMentions(arg)
+      const s = mentions.length ? resolveSheets(c, w, mentions[0])[0] : mySheet(c, w)
+      if (!s) return { error: "Use /status @alvo." }
+      const t = c.room.templates.find((x) => x.id === s.template_id)
+      const bars = (t?.fields ?? []).filter((f) => f.type === "bar").map((f) => ({ label: f.label, v: Number(s.data?.[f.key] ?? 0), m: Number(s.data?.[f.key + "_max"] ?? 0) }))
+      const nums = (t?.fields ?? []).filter((f) => f.type === "num").map((f) => ({ label: f.key.toUpperCase(), v: Number(s.data?.[f.key] ?? 0) }))
+      await post(c, { kind: "status", speaker: s.name, body: "", data: { bars, nums, conds: s.data?._conds ?? [], avatar: s.avatar || null, by: c.me.name } })
+      return { ok: true }
+    }
+    case "ooc": case "off": case "fora":
+      if (!arg) return { error: "Use /ooc mensagem fora do personagem." }
+      await post(c, { kind: "ooc", body: arg })
+      return { ok: true }
+    case "grito": case "gritar":
+      if (!arg) return { error: "Use /grito ALGUMA COISA!" }
+      await post(c, { kind: "shout", body: arg.toUpperCase(), speaker: voice(c, w) })
+      return { ok: true }
+    case "cena":
+      if (!c.isGM) return { error: "Só o mestre muda a cena." }
+      await sql`UPDATE rooms SET scene = ${arg.slice(0, 80)} WHERE id = ${c.room.id}`
+      await post(c, { kind: "scene", body: arg ? arg.slice(0, 80) : "A cena se dissolve…", speaker: "Cena" })
+      return { ok: true }
+    case "quem": case "presentes": {
+      const list = w.members.map((m) => `${m.role === "gm" ? "👑 " : ""}${m.name}${m.sheet_id ? ` (${w.sheets.find((s) => s.id === m.sheet_id)?.name ?? "?"})` : ""}`).join(" · ")
+      await post(c, { kind: "system", body: `À mesa: ${list}`, to: c.me.id, data: { icon: "users" } })
+      return { ok: true }
+    }
+    case "ajuda": case "help": case "comandos":
+      await post(c, { kind: "system", to: c.me.id, data: { icon: "help" }, body: "Comandos: /r /sr /me /w /ooc /grito /moeda /oraculo /pv /dano /cura /descansar /status /init /proximo /cond /quem /gm — e, para o mestre, /n /npc /cena /desfazer. A aba ? do painel esquerdo explica cada um." })
+      return { ok: true }
     default:
       return changeAttr(c, w, cmd, arg)
   }

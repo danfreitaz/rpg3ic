@@ -11,7 +11,7 @@ export type InitState = { on: boolean; round: number; turn: number; order: InitE
 export type Cond = { n: string; r: number | null }
 
 export type Room = {
-  id: string; code: string; name: string; owner_id: string; gm_locked: boolean
+  id: string; code: string; name: string; owner_id: string; gm_locked: boolean; public: boolean
   skin: string; scene: string; map: MapState; init: InitState; templates: Template[]
 }
 export type Member = { id: string; name: string; role: "gm" | "player"; color: string; sheet_id: string | null }

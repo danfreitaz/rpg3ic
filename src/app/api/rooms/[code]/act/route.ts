@@ -4,7 +4,7 @@ import { ctx, fail, json, type Ctx } from "@/lib/room"
 import { blankData, EMPTY_INIT, norm, type Field, type Sheet, type Template, type Token } from "@/lib/types"
 
 // Chaves que colidiriam com comandos do chat.
-const RESERVED = new Set(["r", "rolar", "roll", "dado", "sr", "rs", "gmr", "secreto", "me", "acao", "a", "w", "s", "sussurro", "sussurrar", "n", "narrar", "narracao", "npc", "como", "desfazer", "undo", "init", "iniciativa", "proximo", "prox", "next", "turno", "cond", "condicao", "gm", "mestre"])
+const RESERVED = new Set(["r", "rolar", "roll", "dado", "sr", "rs", "gmr", "secreto", "me", "acao", "a", "w", "s", "sussurro", "sussurrar", "n", "narrar", "narracao", "npc", "como", "desfazer", "undo", "init", "iniciativa", "proximo", "prox", "next", "turno", "cond", "condicao", "gm", "mestre", "moeda", "coin", "oraculo", "sorte", "destino", "dano", "ferir", "cura", "curar", "descansar", "descanso", "status", "ficha", "ooc", "off", "fora", "grito", "gritar", "cena", "quem", "presentes", "ajuda", "help", "comandos"])
 const str = (v: any, max: number) => String(v ?? "").trim().slice(0, max)
 const url = (v: any) => { const s = str(v, 600); return /^https:\/\/\S+$/.test(s) ? s : "" }
 const hex = (v: any, d = "#c9a24b") => (/^#[0-9a-f]{6}$/i.test(String(v)) ? String(v) : d)
@@ -153,6 +153,10 @@ async function act(c: Ctx, b: any): Promise<any> {
     case "room.set": {
       if (!c.isGM && !c.isOwner) return { error: GM }
       if (b.name !== undefined) await sql`UPDATE rooms SET name = ${str(b.name, 60) || c.room.name} WHERE id = ${c.room.id}`
+      if (b.public !== undefined) {
+        if (!c.isOwner) return { error: "Só quem criou a sala decide se ela é pública." }
+        await sql`UPDATE rooms SET public = ${!!b.public} WHERE id = ${c.room.id}`
+      }
       if (b.scene !== undefined) await sql`UPDATE rooms SET scene = ${str(b.scene, 80)} WHERE id = ${c.room.id}`
       if (b.gm_locked !== undefined) {
         if (!c.isOwner) return { error: "Só quem criou a sala trava o posto de mestre." }

@@ -66,6 +66,7 @@ export const sfx = {
   heal() { [660, 880, 1320].forEach((f, i) => tone(f, 0.25, "sine", 0.18, i * 0.07)) },
   bell() { tone(784, 1.0, "sine", 0.25); tone(1568, 0.7, "sine", 0.08, 0.01); tone(1176, 0.8, "triangle", 0.05, 0.02) },
   door() { tone(110, 0.3, "triangle", 0.2, 0, 90); noise(0.2, 0.05, 0.15, 500, 1) },
+  coin() { tone(2400, 0.06, "triangle", 0.18); tone(3200, 0.05, "triangle", 0.12, 0.08); tone(2600, 0.25, "sine", 0.1, 0.5); tone(2600, 0.15, "sine", 0.08, 0.62) },
   click() { tone(1600, 0.03, "square", 0.05) },
   error() { tone(200, 0.12, "square", 0.12); tone(150, 0.16, "square", 0.12, 0.1) },
   paper() { noise(0.25, 0, 0.2, 3000, 0.5); noise(0.18, 0.12, 0.15, 5000, 0.5) },

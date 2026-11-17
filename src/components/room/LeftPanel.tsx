@@ -13,7 +13,8 @@ export function LeftPanel() {
   useEffect(() => { if (R.focus.sheet) setTab(R.isGM ? (R.sheets.find((s) => s.id === R.focus.sheet)?.kind === "pc" ? "sheets" : "gm") : "sheets") }, [R.focus.sheet])
   useEffect(() => { if (!R.isGM && tab === "gm") setTab("sheets") }, [R.isGM, tab])
   return (
-    <aside className="frame panel">
+    <aside className="frame panel side-left theme-light">
+      <span className="corner-tr" /><span className="corner-bl" />
       <div className="tabs">
         <button className={"tab " + (tab === "sheets" ? "on" : "")} onClick={() => setTab("sheets")}><Icon n="scroll" size={14} /> Fichas</button>
         {R.isGM && <button className={"tab " + (tab === "gm" ? "on" : "")} onClick={() => setTab("gm")}><Icon n="crown" size={14} /> Mestre</button>}
@@ -388,12 +389,21 @@ function HelpTab() {
     ["/init iniciar · /proximo · /init fim", "Controle de turnos"],
     ["/cond @Orc Atordoado 2", "Condição por 2 rodadas (/cond @Orc -Atordoado remove)"],
     ["/gm", "Assumir ou largar o posto de mestre"],
+    ["/dano @Orc 8 · /cura @Lyra 5", "Mexe na primeira barra da ficha (a vida)"],
+    ["/descansar @todos", "Enche todas as barras"],
+    ["/status @Lyra", "Resumo da ficha no chat"],
+    ["/moeda", "Cara ou coroa"],
+    ["/oraculo a ponte aguenta?", "Sim, não, mas, e… (2d6)"],
+    ["/ooc texto · ((texto))", "Fora do personagem"],
+    ["/grito SOCORRO", "Grito em letras garrafais"],
+    ["/quem · /ajuda", "Quem está à mesa e lista de comandos (só você vê)"],
   ]
   const gm: [string, string][] = [
     ["/n texto", "Narração em pergaminho"],
     ["/npc Odo: Bom dia!", "Falar como NPC (ou use o seletor ao lado do chat)"],
     ["/pv @todos +5", "Afeta todos os personagens"],
     ["/desfazer", "Desfaz a última mudança de atributo"],
+    ["/cena Porto ao entardecer", "Troca a cena do topo e anuncia a todos"],
   ]
   return (
     <div className="helpgrid">
@@ -402,7 +412,7 @@ function HelpTab() {
       <div className="sec-title"><Icon n="crown" size={13} /> Só o mestre</div>
       {gm.map(([c, d]) => <div key={c}><code>{c}</code> <span className="muted">{d}</span></div>)}
       <div className="sec-title">Atalhos</div>
-      <div className="muted"><kbd>Enter</kbd> envia · <kbd>Shift+Enter</kbd> quebra linha · <kbd>↑</kbd> repete o último · <kbd>Tab</kbd> completa · <kbd>@</kbd> sugere nomes</div>
+      <div className="muted"><kbd>Enter</kbd> envia · <kbd>Shift+Enter</kbd> quebra linha · <kbd>↑</kbd> repete o último · <kbd>Tab</kbd> completa · <kbd>@</kbd> sugere nomes · clique nos dados para enchê-los na bandeja, botão direito tira</div>
       {!R.isGM && <p className="faint" style={{ fontSize: ".85rem" }}>Mudar atributos de outras fichas é poder do mestre.</p>}
     </div>
   )

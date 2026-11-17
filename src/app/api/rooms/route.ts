@@ -21,12 +21,13 @@ export async function POST(req: Request) {
   if (!who?.userId) return fail("Entre com sua conta para criar uma sala.", 401)
   const body = await req.json().catch(() => ({}))
   const name = String(body.name ?? "").trim().slice(0, 60) || "Mesa sem nome"
+  const isPublic = body.public === true
   const id = uid()
   let code = ""
   for (let i = 0; i < 6 && !code; i++) {
     const tryCode = roomCode()
-    const r = await sql`INSERT INTO rooms (id, code, name, owner_id, map, init, templates)
-      VALUES (${id}, ${tryCode}, ${name}, ${who.userId}, ${JSON.stringify(EMPTY_MAP)}::jsonb, ${JSON.stringify(EMPTY_INIT)}::jsonb, ${JSON.stringify(DEFAULT_TEMPLATES)}::jsonb)
+    const r = await sql`INSERT INTO rooms (id, code, name, owner_id, public, map, init, templates)
+      VALUES (${id}, ${tryCode}, ${name}, ${who.userId}, ${isPublic}, ${JSON.stringify(EMPTY_MAP)}::jsonb, ${JSON.stringify(EMPTY_INIT)}::jsonb, ${JSON.stringify(DEFAULT_TEMPLATES)}::jsonb)
       ON CONFLICT (code) DO NOTHING RETURNING code`
     if (r.length) code = tryCode
   }

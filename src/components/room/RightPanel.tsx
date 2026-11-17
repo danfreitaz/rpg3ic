@@ -16,7 +16,8 @@ export function RightPanel() {
   const first = useRef(true)
   useEffect(() => { if (first.current) { first.current = false; return } if (lastTurn) setTab((t) => (t === "map" ? t : "init")) }, [lastTurn])
   return (
-    <aside className="frame panel">
+    <aside className="frame panel side-right">
+      <span className="corner-tr" /><span className="corner-bl" /><span className="studs" />
       <div className="tabs">
         <button className={"tab " + (tab === "map" ? "on" : "")} onClick={() => setTab("map")}><Icon n="map" size={14} /> Mapa</button>
         <button className={"tab " + (tab === "init" ? "on" : "")} onClick={() => setTab("init")}><Icon n="hourglass" size={14} /> Turnos{init.on && <span className="chip gold" style={{ marginLeft: 2 }}>{init.round}</span>}</button>

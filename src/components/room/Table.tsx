@@ -18,6 +18,9 @@ export function Table({ live }: { live: boolean }) {
   const seen = useRef<number>(-1)
 
   useEffect(() => setSound(soundOn()), [])
+  useEffect(() => {
+    try { localStorage.setItem("r3_last_room", JSON.stringify({ code: R.code, name: R.room.name, at: Date.now() })) } catch {}
+  }, [R.code, R.room.name])
 
   // Sons e animações só para mensagens novas (não para o histórico carregado).
   useEffect(() => {
@@ -33,25 +36,39 @@ export function Table({ live }: { live: boolean }) {
       else if (m.kind === "narration") sfx.narration()
       else if (m.kind === "turn") sfx.bell()
       else if (m.kind === "action") sfx.action()
+      else if (m.kind === "coin") sfx.coin()
+      else if (m.kind === "oracle") sfx.narration()
+      else if (m.kind === "shout") sfx.damage()
+      else if (m.kind === "scene") sfx.door()
       else if (m.kind === "system") m.data?.icon === "door" ? sfx.door() : sfx.paper()
       else if (m.member_id !== R.me.id) sfx.msg()
     }
   }, [R.messages, R.me.id])
 
   const copy = () => {
+    navigator.clipboard?.writeText(R.code)
+    R.toast(`Código ${R.code} copiado.`, true)
+    sfx.click()
+  }
+  const copyLink = () => {
     navigator.clipboard?.writeText(`${location.origin}/s/${R.code}`)
-    R.toast(`Convite copiado! Código ${R.code}`, true)
+    R.toast("Link direto da sala copiado!", true)
     sfx.click()
   }
 
   return (
     <div className={"table " + (R.isGM ? "gm" : "")}>
       <header className="frame topbar">
+        <span className="corner-tr" /><span className="corner-bl" />
         <Link href="/" className="brand" title="Voltar ao saguão"><Seal size={32} /><b>RPG3ic</b></Link>
         <span className="sep" />
         <span className="roomname" title={R.room.name}>{R.room.name}</span>
         {R.room.scene && <span className="scene">· {R.room.scene}</span>}
-        <button className="codebadge" onClick={copy} title="Copiar convite">{R.code} <Icon n="copy" size={13} /></button>
+        <button className="codebadge" onClick={copy} title="Copiar o código">{R.code}</button>
+        <button className="btn sm ghost linkbtn" onClick={copyLink} title="Copiar o link direto para a sala"><Icon n="copy" size={13} /> Copiar link</button>
+        <span className={"chip " + (R.room.public ? "green" : "")} title={R.room.public ? "Aparece na lista de mesas abertas" : "Só entra quem tem o código"}>
+          <Icon n={R.room.public ? "eye" : "eyeoff"} size={11} /> {R.room.public ? "pública" : "privada"}
+        </span>
         <span className="grow" />
         <span className={"chip " + (live ? "green" : "red")} title={live ? "Sincronizado em tempo real" : "Reconectando…"}>
           <span style={{ width: 7, height: 7, borderRadius: 9, background: live ? "#7fd18f" : "#e2725e", display: "inline-block" }} />
@@ -97,6 +114,7 @@ export function Modal({ title, icon, onClose, children }: { title: string; icon:
   return (
     <div className="modal-back" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="frame modal rise">
+        <span className="corner-tr" /><span className="corner-bl" />
         <div className="row"><h2 className="grow"><Icon n={icon} /> {title}</h2><button className="iconbtn" onClick={onClose}><Icon n="x" /></button></div>
         {children}
       </div>
@@ -120,6 +138,11 @@ function RoomSettings({ onClose }: { onClose: () => void }) {
 
       {R.me.owner && (
         <>
+          <div className="sec-title"><Icon n="eye" size={14} /> Visibilidade</div>
+          <div className="row">
+            <p className="grow muted" style={{ margin: 0 }}>{R.room.public ? "Pública: aparece em “Mesas abertas” na página inicial, e qualquer um pode entrar." : "Privada: só entra quem tem o código ou o link."}</p>
+            <button className={"btn " + (R.room.public ? "ghost" : "")} onClick={() => R.act("room.set", { public: !R.room.public })}>{R.room.public ? "Tornar privada" : "Tornar pública"}</button>
+          </div>
           <div className="sec-title"><Icon n="crown" size={14} /> Posto de mestre</div>
           <div className="row">
             <p className="grow muted" style={{ margin: 0 }}>{R.room.gm_locked ? "Travado: só você é mestre. Ninguém mais consegue assumir." : "Livre: qualquer jogador pode se declarar mestre."}</p>
@@ -145,7 +168,10 @@ function RoomSettings({ onClose }: { onClose: () => void }) {
           </div>
         ))}
       </div>
-      <p className="faint" style={{ fontSize: ".85rem" }}>Convite: <span className="mono">{typeof window !== "undefined" ? location.origin : ""}/s/{R.code}</span></p>
+      <div className="row" style={{ marginTop: ".8rem" }}>
+        <span className="faint mono grow" style={{ fontSize: ".85rem" }}>{typeof window !== "undefined" ? location.origin : ""}/s/{R.code}</span>
+        <button className="btn sm" onClick={() => { navigator.clipboard?.writeText(`${location.origin}/s/${R.code}`); R.toast("Link copiado!", true) }}><Icon n="copy" size={12} /> Copiar link</button>
+      </div>
     </Modal>
   )
 }
