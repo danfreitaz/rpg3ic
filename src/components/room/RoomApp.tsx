@@ -75,8 +75,11 @@ function useLive<T>(code: string, q: string, sealed: SealedLiveQuery<any>) {
     const r = await fetch(`/api/rooms/${code}/live`, { method: "POST", cache: "no-store", body: JSON.stringify({ q }) })
     if (r.status === 401 || r.status === 403) { location.reload(); throw new Error("sessão perdida") }
     if (!r.ok) throw new Error("falha ao renovar")
-    return r.json()
-  }, [code, q])
+    const next = await r.json()
+    // Uma atualização do site mudou a consulta: recarrega para assinar a nova.
+    if (next.queryFingerprint !== query.queryFingerprint) { location.reload(); throw new Error("consulta mudou") }
+    return next
+  }, [code, q, query])
   const { data, status } = useLiveQuery<T>(query, { refreshQuery })
   return { data: (data ?? []) as T[], status }
 }
@@ -132,6 +135,8 @@ function Data({ boot, code }: { boot: Boot; code: string }) {
   }, [room.data, members.data, messages.data, sheets.data, notes.data, boot.me, code, act, chat, toast, focusSheet])
 
   const live = [room, members, messages, sheets, notes].every((x) => x.status === "live")
+  const dead = [room, members, messages, sheets, notes].some((x) => x.status === "error")
+  useEffect(() => { if (dead) { const t = setTimeout(() => location.reload(), 1500); return () => clearTimeout(t) } }, [dead])
   if (!value) {
     if (room.status === "live" && members.status === "live") return <Splash><p className="muted">Você não está mais nesta mesa.</p><Link className="btn" href="/">Voltar</Link></Splash>
     return <Splash><div className="loading-dice"><Icon n="d20" size={48} /></div><p className="muted">Conectando à mesa…</p></Splash>

@@ -78,7 +78,10 @@ export function Chat() {
 
   useEffect(() => {
     const el = logRef.current
-    if (el && stick.current) el.scrollTop = el.scrollHeight
+    if (!el || !stick.current) return
+    el.scrollTop = el.scrollHeight
+    const t = setTimeout(() => { el.scrollTop = el.scrollHeight }, 60)
+    return () => clearTimeout(t)
   }, [R.messages.length])
 
   const npcs = R.sheets.filter((s) => s.kind !== "pc")
@@ -152,6 +155,16 @@ export function Chat() {
             ))}
           </div>
         )}
+        {expr && (
+          <div className="tray rise">
+            <Icon n="d20" size={15} />
+            <span className="tray-expr">{expr}</span>
+            <span className="faint" style={{ fontSize: ".8rem" }}>na bandeja · Enter rola</span>
+            <span className="grow" />
+            <button className="btn sm" onClick={() => send()}><Icon n="d20" size={12} /> Rolar</button>
+            <button className="iconbtn sm" onClick={() => { clearPool() }} title="Esvaziar a bandeja"><Icon n="x" size={13} /></button>
+          </div>
+        )}
         <div className="dicebar">
           {[4, 6, 8, 10, 12, 20, 100].map((d) => (
             <button key={d} className={"dbtn die-btn " + (pool[d] ? "on" : "")} onClick={() => addDie(d)} onContextMenu={(e) => { e.preventDefault(); addDie(d, -1) }} title={`Clique: põe 1d${d} na bandeja · botão direito: tira`}>
@@ -165,18 +178,8 @@ export function Chat() {
           <span className="grow" />
           <button className="dbtn" onClick={() => send("/r 2d20kh1 #Vantagem")} title="2d20, fica o maior">vant.</button>
           <button className="dbtn" onClick={() => send("/r 2d20kl1 #Desvantagem")} title="2d20, fica o menor">desv.</button>
-          <button className="dbtn" onClick={() => { send(`/sr ${expr || "1d20"}`); clearPool(); autoText.current = ""; setText("") }} title="Só você e o mestre veem"><Icon n="eyeoff" size={13} />secreta</button>
+          <button className="dbtn" onClick={() => { send(`/sr ${expr || "1d20"}`); clearPool(); autoText.current = ""; setText("") }} title="Só você e o mestre veem"><Icon n="eyeoff" size={13} />secr.</button>
         </div>
-        {expr && (
-          <div className="tray rise">
-            <Icon n="d20" size={15} />
-            <span className="tray-expr">{expr}</span>
-            <span className="faint" style={{ fontSize: ".8rem" }}>na bandeja · Enter rola</span>
-            <span className="grow" />
-            <button className="btn sm" onClick={() => send()}><Icon n="d20" size={12} /> Rolar</button>
-            <button className="iconbtn sm" onClick={() => { clearPool() }} title="Esvaziar a bandeja"><Icon n="x" size={13} /></button>
-          </div>
-        )}
         {mySheet && <div className="active-sheet"><Icon n="scroll" size={11} /> falando e rolando como <b>{mySheet.name}</b></div>}
         <div className="inputrow">
           {R.isGM && (
@@ -284,7 +287,7 @@ function Coin({ m }: { m: Msg }) {
   return (
     <div className="rollcard coin-card">
       <div className="row">
-        <span className={"coin " + (m.data?.face === "Cara" ? "heads" : "tails")}>{m.data?.face === "Cara" ? "☉" : "♛"}</span>
+        <span className={"coin-face " + (m.data?.face === "Cara" ? "heads" : "tails")}>{m.data?.face === "Cara" ? "☉" : "♛"}</span>
         <div className="grow">{m.body && <div className="lbl2">{m.body}</div>}<div className="expr">moeda ao ar…</div></div>
         <span className="total">{m.data?.face}</span>
       </div>

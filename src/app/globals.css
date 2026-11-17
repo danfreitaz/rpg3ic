@@ -205,7 +205,7 @@ h1, h2, h3, h4 { font-family: var(--f-title); font-weight: 700; letter-spacing: 
 /* Chat */
 .chat { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
 .chat-head { display: flex; align-items: center; gap: .6rem; padding: .55rem .9rem; border-bottom: 1px solid var(--line-soft); }
-.log { flex: 1; overflow: auto; padding: .8rem 1rem; display: flex; flex-direction: column; gap: .5rem; scroll-behavior: smooth; }
+.log { flex: 1; overflow: auto; padding: .8rem 1rem; display: flex; flex-direction: column; gap: .5rem; }
 .msg { display: grid; grid-template-columns: 34px 1fr; gap: .6rem; animation: rise .3s var(--ease) both; }
 .msg .who { font: 700 .82rem var(--f-title); letter-spacing: .03em; }
 .msg .time { font-size: .72rem; color: var(--ink-faint); margin-left: .4rem; font-family: var(--f-mono); }
@@ -250,7 +250,8 @@ h1, h2, h3, h4 { font-family: var(--f-title); font-weight: 700; letter-spacing: 
 
 /* Entrada do chat */
 .composer { border-top: 1px solid var(--line-soft); padding: .55rem .8rem .7rem; display: flex; flex-direction: column; gap: .45rem; position: relative; }
-.dicebar { display: flex; gap: .3rem; flex-wrap: wrap; align-items: center; }
+.dicebar { display: flex; gap: .25rem; flex-wrap: nowrap; align-items: center; overflow-x: auto; scrollbar-width: none; padding-top: 8px; }
+.dicebar::-webkit-scrollbar { display: none; }
 .dbtn { display: inline-flex; align-items: center; gap: .25rem; padding: .22rem .5rem; border-radius: 6px; cursor: pointer; font: 700 .74rem var(--f-mono); color: var(--ink); background: var(--tint-2); border: 1px solid var(--line); transition: all .15s var(--ease); }
 .dbtn:hover { color: var(--parch-ink); background: var(--gold); border-color: var(--gold-hi); transform: translateY(-2px) rotate(-3deg); }
 .dbtn.on { color: var(--parch-ink); background: var(--gold); }
@@ -545,7 +546,7 @@ body > * { position: relative; z-index: 1; }
 .scene-card { align-self: center; display: flex; align-items: center; gap: .6rem; padding: .5rem 1.3rem; margin: .3rem 0; font: 700 .95rem var(--f-title); letter-spacing: .08em; text-transform: uppercase; color: #fff1c4; background: linear-gradient(90deg, transparent, var(--royal) 15%, var(--royal) 85%, transparent); border-top: 1px solid #c9a24b; border-bottom: 1px solid #c9a24b; animation: rise .4s var(--ease) both; }
 .narr { background: linear-gradient(180deg, #f7ecd2, #e7d3a8); border: 1px solid #b08a4a; box-shadow: 0 0 0 4px rgba(0,0,0,.25), 0 10px 26px rgba(0,0,0,.55), inset 0 0 30px rgba(140,90,30,.25); }
 .narr::first-letter { font: 700 2.1rem/1 var(--f-display); color: var(--crimson); float: left; margin: .1rem .35rem 0 0; }
-.coin { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-size: 1.2rem; color: #4a3008; background: radial-gradient(circle at 35% 30%, #fff1b8, #d9ad45 55%, #8a6114); box-shadow: inset 0 -2px 3px rgba(0,0,0,.35), 0 3px 8px rgba(0,0,0,.5); animation: flip .9s var(--ease) both; }
+.coin-face { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-size: 1.2rem; color: #4a3008; background: radial-gradient(circle at 35% 30%, #fff1b8, #d9ad45 55%, #8a6114); box-shadow: inset 0 -2px 3px rgba(0,0,0,.35), 0 3px 8px rgba(0,0,0,.5); animation: flip .9s var(--ease) both; }
 @keyframes flip { 0% { transform: rotateY(0) translateY(-14px) } 60% { transform: rotateY(1080deg) translateY(-4px) } 100% { transform: rotateY(1440deg) } }
 .rollcard.oracle { border-color: rgba(155,116,201,.6); background: linear-gradient(160deg, rgba(155,116,201,.18), rgba(0,0,0,.25)); }
 .rollcard.status-card { min-width: 280px; }
