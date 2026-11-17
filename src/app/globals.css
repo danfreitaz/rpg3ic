@@ -692,3 +692,6 @@ html:not([data-skin="medieval"]) .theme-light .modal-back .field option { backgr
 .shape-opt:hover { transform: translateY(-2px); border-color: var(--gold); }
 .shape-opt.on { border-color: var(--gold-hi); background: rgba(201,162,75,.16); }
 .shape-opt small { font-size: .62rem; color: var(--ink-dim); white-space: nowrap; }
+.token.shaped svg { transform: scale(1.2); }
+.rollcard .dice-row > .row { flex-wrap: wrap; }
+.rollcard { max-width: 100%; }
