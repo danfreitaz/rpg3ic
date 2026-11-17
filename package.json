@@ -1,0 +1,26 @@
+{
+  "name": "rpg3ic",
+  "version": "0.2.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@neon/auth": "^0.8.2",
+    "@neon/realtime": "latest",
+    "@neon/realtime-react": "latest",
+    "@neondatabase/serverless": "latest",
+    "jose": "latest",
+    "next": "^16.4.6",
+    "react": "latest",
+    "react-dom": "latest"
+  },
+  "devDependencies": {
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "typescript": "latest"
+  }
+}
