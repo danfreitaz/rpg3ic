@@ -147,6 +147,10 @@ async function act(c: Ctx, b: any): Promise<any> {
       await sql`UPDATE rooms SET init = ${JSON.stringify(init)}::jsonb WHERE id = ${c.room.id}`
       return {}
     }
+    case "msg.delete":
+      if (!c.isGM) return { error: "Só o mestre apaga mensagens." }
+      await sql`DELETE FROM messages WHERE seq = ${Number(b.seq) || 0} AND room_id = ${c.room.id}`
+      return {}
     case "init.next":
       return nextTurn(c)
     // ───── Sala e pessoas

@@ -1,9 +1,10 @@
 "use client"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Icon } from "@/components/Icon"
+import { openMenu } from "@/components/ContextMenu"
 import { EMPTY_INIT, EMPTY_MAP, type InitState, type MapState, type Note, type Token } from "@/lib/types"
 import { hhmm, hpOf, initials, useRoom } from "./ctx"
-import { NoteEditor } from "./LeftPanel"
+import { NoteEditor, noteMenu, sheetMenu } from "./LeftPanel"
 import { Modal } from "./Table"
 
 type Tab = "map" | "init" | "dice" | "diary"
@@ -72,6 +73,31 @@ function MapTab() {
     if (changed) setFogLocal(arr.join(""))
   }
 
+  function fogArea(x: number, y: number, r: number, v: "0" | "1") {
+    const arr = fog.split("")
+    for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+      const cx = Math.round(x) + dx, cy = Math.round(y) + dy
+      if (cx >= 0 && cy >= 0 && cx < map.cols && cy < map.rows) arr[cy * map.cols + cx] = v
+    }
+    R.act("map.set", { fog: arr.join("") })
+  }
+  function onGridMenu(e: React.MouseEvent) {
+    if (!R.isGM) return
+    const rect = gridRef.current!.getBoundingClientRect()
+    const cx = Math.floor((e.clientX - rect.left) / CELL), cy = Math.floor((e.clientY - rect.top) / CELL)
+    const unplaced = R.sheets.filter((s) => !Object.values(map.tokens ?? {}).some((k) => k.sheet_id === s.id)).slice(0, 8)
+    openMenu(e, [
+      { title: `Mapa · casa ${cx + 1}, ${cy + 1}` },
+      { label: "Nova peça aqui", icon: "plus", onClick: () => R.act("token.put", { label: "?", x: cx, y: cy, color: "#b9a27a" }) },
+      ...unplaced.map((s) => ({ label: `Pôr ${s.name} aqui`, icon: "pin", onClick: () => R.act("token.put", { label: s.name.slice(0, 2), sheet_id: s.id, x: cx, y: cy, color: R.memberById(s.owner_member ?? "")?.color ?? (s.kind === "creature" ? "#a3362a" : "#b9a27a"), hidden: s.hidden }) })),
+      "sep",
+      map.fogOn ? { label: "Revelar área (5×5)", icon: "eye", onClick: () => fogArea(cx, cy, 2, "0") } : null,
+      map.fogOn ? { label: "Cobrir área (5×5)", icon: "cloud", onClick: () => fogArea(cx, cy, 2, "1") } : null,
+      { label: map.fogOn ? "Desligar névoa de guerra" : "Ligar névoa de guerra", icon: "cloud", onClick: () => R.act("map.set", { fogOn: !map.fogOn, fog: map.fog || "1".repeat(cells) }) },
+      { label: "Configurar mapa", icon: "gear", onClick: () => setCfg(true) },
+    ])
+  }
+
   function onGridDown(e: React.PointerEvent) {
     if (!R.isGM || tool === "move" || !map.fogOn) return
     painting.current = true
@@ -122,7 +148,7 @@ function MapTab() {
         <button className="iconbtn sm" onClick={() => setZoom((z) => Math.min(2, +(z + 0.15).toFixed(2)))} title="Aproximar"><Icon n="plus" size={13} /></button>
       </div>
       <div className="mapwrap grow">
-        <div ref={gridRef} className="mapgrid" onPointerDown={onGridDown} onPointerMove={onGridMove} onPointerUp={onGridUp} onPointerLeave={onGridUp}
+        <div ref={gridRef} className="mapgrid" onContextMenu={onGridMenu} onPointerDown={onGridDown} onPointerMove={onGridMove} onPointerUp={onGridUp} onPointerLeave={onGridUp}
           style={{ width: map.cols * CELL, height: map.rows * CELL, backgroundImage: map.image ? `url("${map.image}")` : undefined, background: map.image ? undefined : "var(--map-empty, radial-gradient(circle at 40% 40%, #2c2015, #120c07))", cursor: R.isGM && tool !== "move" && map.fogOn ? "crosshair" : "default" }}>
           <div className="gridlines" style={{ backgroundSize: `${CELL}px ${CELL}px` }} />
           {tokens.filter(visibleFor).map((t) => {
@@ -136,7 +162,18 @@ function MapTab() {
                 title={sheet?.name ?? t.label}
                 onPointerDown={(e) => { if (!canMove(t) || (R.isGM && tool !== "move" && map.fogOn)) return; e.stopPropagation(); gridRef.current?.setPointerCapture?.(e.pointerId); setDrag({ id: t.id, x: t.x, y: t.y }) }}
                 onDoubleClick={() => sheet && R.focus.setSheet(sheet.id)}
-                onContextMenu={(e) => { if (!R.isGM) return; e.preventDefault(); setCfg(false); setEditTok(t) }}>
+                onContextMenu={(e) => openMenu(e, [
+                  { title: sheet?.name ?? `Peça ${t.label}` },
+                  sheet ? { label: "Abrir ficha", icon: "scroll", onClick: () => R.focus.setSheet(sheet.id) } : null,
+                  R.isGM ? { label: "Editar peça", icon: "quill", onClick: () => setEditTok(t) } : null,
+                  R.isGM ? { label: t.hidden ? "Mostrar aos jogadores" : "Esconder dos jogadores", icon: t.hidden ? "eye" : "eyeoff", onClick: () => R.act("token.put", { ...t, hidden: !t.hidden }) } : null,
+                  R.isGM ? { label: "Aumentar", icon: "plus", disabled: (t.size ?? 1) >= 4, onClick: () => R.act("token.put", { ...t, size: (t.size ?? 1) + 1 }) } : null,
+                  R.isGM ? { label: "Diminuir", icon: "minus", disabled: (t.size ?? 1) <= 1, onClick: () => R.act("token.put", { ...t, size: (t.size ?? 1) - 1 }) } : null,
+                  R.isGM && map.fogOn ? { label: "Revelar a névoa ao redor", icon: "cloud", onClick: () => fogArea(t.x, t.y, 2, "0") } : null,
+                  ...(sheet ? ["sep" as const, ...sheetMenu(R, sheet).slice(2).filter((x) => !(x && typeof x === "object" && "label" in x && (x.label === "Pôr no mapa" || x.label === "Apagar ficha")))] : []),
+                  R.isGM ? "sep" : null,
+                  R.isGM ? { label: "Tirar do mapa", icon: "trash", danger: true, onClick: () => R.act("token.del", { id: t.id }) } : null,
+                ])}>
                 {sheet?.avatar ? <img src={sheet.avatar} alt="" /> : <span>{initials(sheet?.name ?? t.label)}</span>}
                 {hp && <span className="hp"><i style={{ width: hp.pct + "%" }} /></span>}
                 <span className="nm">{sheet?.name ?? t.label}</span>
@@ -255,7 +292,17 @@ function InitTab() {
           const conds = (s?.data?._conds ?? []) as { n: string; r: number | null }[]
           const tag = (s?.name ?? e.name).replace(/\s+/g, "")
           return (
-            <div key={e.id} className={"init-item " + (init.on && i === init.turn ? "cur" : "")}>
+            <div key={e.id} className={"init-item " + (init.on && i === init.turn ? "cur" : "")}
+              onContextMenu={(ev) => openMenu(ev, [
+                { title: `Iniciativa · ${e.name} (${e.init})` },
+                s ? { label: "Abrir ficha", icon: "scroll", onClick: () => R.focus.setSheet(s.id) } : null,
+                R.isGM ? { label: "Passar a vez para cá", icon: "hourglass", disabled: init.on && i === init.turn, onClick: () => save({ on: true, turn: i }) } : null,
+                R.isGM ? { label: "Subir na ordem", icon: "plus", disabled: i === 0, onClick: () => save({ order: init.order.map((x) => (x.id === e.id ? { ...x, init: (init.order[i - 1]?.init ?? x.init) + 1 } : x)).sort((a, b) => b.init - a.init) }) } : null,
+                R.isGM && s ? { label: "Adicionar condição…", icon: "flame", onClick: () => setCond({ tag, name: "" }) } : null,
+                ...(s ? ["sep" as const, ...sheetMenu(R, s).slice(3, 12)] : []),
+                R.isGM ? "sep" : null,
+                R.isGM ? { label: "Tirar da iniciativa", icon: "x", danger: true, onClick: () => { const order = init.order.filter((x) => x.id !== e.id); save({ order, turn: Math.min(init.turn > i ? init.turn - 1 : init.turn, Math.max(0, order.length - 1)), on: init.on && order.length > 0 }) } } : null,
+              ])}>
               <div className="init-val">
                 {R.isGM ? <input key={e.init} defaultValue={e.init} onBlur={(ev) => { const v = Number(ev.target.value); if (v !== e.init) save({ order: init.order.map((x) => (x.id === e.id ? { ...x, init: v } : x)).sort((a, b) => b.init - a.init) }) }} />
                   : e.init}
@@ -384,7 +431,7 @@ function DiaryTab() {
         const a = n.author_member ? R.memberById(n.author_member) : null
         const mine = n.author_member === R.me.id
         return (
-          <div key={n.id} className="parch note rise">
+          <div key={n.id} className="parch note rise" onContextMenu={(e) => openMenu(e, noteMenu(R, n, () => setEdit(n)))}>
             <h4>{n.title} {n.hidden && <Icon n="eyeoff" size={13} />}<span className="grow" />
               {(mine || R.isGM) && <button className="iconbtn sm" style={{ color: "#6b4a22" }} onClick={() => setEdit(n)}><Icon n="quill" size={13} /></button>}
             </h4>

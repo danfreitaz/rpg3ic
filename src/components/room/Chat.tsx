@@ -5,6 +5,7 @@ import type { Macro, Msg } from "@/lib/types"
 import { Modal } from "./Table"
 import { hhmm, initials, useRoom } from "./ctx"
 import { sfx } from "@/components/sound"
+import { insertInChat, openMenu, type MenuItem } from "@/components/ContextMenu"
 
 const COMMANDS: { c: string; d: string; gm?: boolean }[] = [
   { c: "/r 1d20+FOR", d: "Rola dados (soma atributos da sua ficha)" },
@@ -76,6 +77,16 @@ export function Chat() {
     inputRef.current?.focus()
   }
   const clearPool = () => { setPool({}); setMod(0) }
+  // Outras partes da mesa (menus do botão direito) podem escrever no campo de fala
+  useEffect(() => {
+    const on = (e: Event) => {
+      const { text: t, replace } = (e as CustomEvent).detail as { text: string; replace: boolean }
+      setText((cur) => (replace || !cur.trim() ? t : cur.replace(/\s*$/, " ") + t))
+      setTimeout(() => { const el = inputRef.current; if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length) } }, 0)
+    }
+    window.addEventListener("r3:insert", on)
+    return () => window.removeEventListener("r3:insert", on)
+  }, [])
   const logRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const stick = useRef(true)
@@ -148,7 +159,11 @@ export function Chat() {
       </div>
       <div className="log" ref={logRef} onScroll={(e) => { const el = e.currentTarget; stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80 }}>
         {R.messages.length === 0 && <div className="empty">A mesa está em silêncio. Quebre o gelo.</div>}
-        {R.messages.map((m, i) => <Line key={m.seq} m={m} prev={R.messages[i - 1]} />)}
+        {R.messages.map((m, i) => (
+          <div key={m.seq} style={{ display: "contents" }} onContextMenu={(e) => openMenu(e, msgMenu(R, m, send))}>
+            <Line m={m} prev={R.messages[i - 1]} />
+          </div>
+        ))}
       </div>
       <div className="composer">
         {hints.length > 0 && (
@@ -348,7 +363,15 @@ function MacroBar({ onRun }: { onRun: (m: Macro) => void }) {
       <Icon n="star" size={13} className="faint" />
       {list.length === 0 && <span className="faint" style={{ fontSize: ".8rem" }}>Sem macros. Crie atalhos para comandos que você usa sempre.</span>}
       {list.map((m, i) => (
-        <button key={i} className="macro" onClick={() => onRun(m)} title={m.text}>{m.name}</button>
+        <button key={i} className="macro" onClick={() => onRun(m)} title={m.text}
+          onContextMenu={(e) => openMenu(e, [
+            { title: `Macro · ${m.name}` },
+            { label: "Executar", icon: "send", onClick: () => onRun(m) },
+            { label: "Colocar no campo de fala", icon: "quill", onClick: () => insertInChat(m.text.split("\n")[0], true) },
+            { label: "Editar macros", icon: "gear", onClick: () => setEdit(true) },
+            "sep",
+            { label: "Apagar esta macro", icon: "trash", danger: true, onClick: () => R.act("me.set", { macros: list.filter((_, j) => j !== i) }) },
+          ])}>{m.name}</button>
       ))}
       <button className="iconbtn sm" title="Editar macros" onClick={() => setEdit(true)}><Icon n="gear" size={13} /></button>
       {edit && <MacroEditor initial={list} onClose={() => setEdit(false)} />}
@@ -415,4 +438,32 @@ function exportMd(R: ReturnType<typeof useRoom>) {
   a.click()
   setTimeout(() => URL.revokeObjectURL(a.href), 2000)
   R.toast("Crônica exportada.", true)
+}
+
+/** Opções do botão direito para cada tipo de mensagem. */
+function msgMenu(R: ReturnType<typeof useRoom>, m: Msg, send: (raw?: string) => void): MenuItem[] {
+  const author = R.memberById(m.member_id)
+  const tag = (n: string) => "@" + n.replace(/\s+/g, "")
+  const sheet = R.sheets.find((s) => s.name === m.speaker)
+  const r = m.data?.r
+  const text = m.kind === "roll" ? `${m.speaker}: ${r?.expr} = ${r?.total}${m.body ? ` (${m.body})` : ""}`
+    : m.kind === "change" ? (m.data?.ch ?? []).map((c: any) => `${c.name} ${c.label}: ${c.from} → ${c.to}`).join("; ")
+    : m.kind === "coin" ? `${m.speaker}: ${m.data?.face}` : m.kind === "oracle" ? `${m.body} → ${m.data?.answer}` : m.body
+  const copy = (t: string, what: string) => { navigator.clipboard?.writeText(t); R.toast(`${what} copiado.`, true) }
+  const isMine = m.member_id === R.me.id
+  const speakerIsPerson = !["system", "turn", "scene", "narration", "reveal"].includes(m.kind)
+  return [
+    { title: m.kind === "roll" ? `Rolagem de ${m.speaker}` : speakerIsPerson ? m.speaker : { system: "Aviso da mesa", turn: "Turno", scene: "Cena", narration: "Narração", reveal: "Revelação" }[m.kind] ?? "Mensagem" },
+    text ? { label: "Copiar texto", icon: "copy", onClick: () => copy(text, "Texto") } : null,
+    m.kind === "roll" && r ? { label: "Rolar de novo", icon: "d20", hint: r.expr, onClick: () => send(`/r ${r.expr}${m.body ? ` #${m.body}` : ""}`) } : null,
+    m.kind === "roll" && r ? { label: "Copiar a expressão", icon: "copy", onClick: () => copy(r.expr, "Expressão") } : null,
+    speakerIsPerson && m.body ? { label: "Responder citando", icon: "quill", onClick: () => insertInChat(`«${m.body.slice(0, 80)}${m.body.length > 80 ? "…" : ""}» — `) } : null,
+    speakerIsPerson ? { label: `Mencionar ${m.speaker}`, icon: "user", onClick: () => insertInChat(tag(sheet?.name ?? m.speaker) + " ") } : null,
+    author && !isMine && speakerIsPerson ? { label: `Sussurrar para ${author.name}`, icon: "whisper", onClick: () => insertInChat(`/w ${tag(author.name)} `, true) } : null,
+    sheet ? { label: `Abrir a ficha de ${sheet.name}`, icon: "scroll", onClick: () => R.focus.setSheet(sheet.id) } : null,
+    m.data?.image ? { label: "Abrir a imagem", icon: "eye", onClick: () => window.open(m.data.image, "_blank", "noopener") } : null,
+    R.isGM && (m.kind === "narration" || m.kind === "reveal") ? { label: "Mostrar de novo na tela", icon: "eye", onClick: () => send(m.kind === "reveal" ? `/revelar ${m.data?.image ? m.data.image + " " : ""}${m.data?.title || "Revelação"} | ${m.body}` : `/n ${m.body}`) } : null,
+    R.isGM ? "sep" : null,
+    R.isGM ? { label: "Apagar mensagem", icon: "trash", danger: true, onClick: () => R.act("msg.delete", { seq: m.seq }) } : null,
+  ]
 }

@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react"
 import { Flourish, Icon, Seal } from "@/components/Icon"
 import { sfx } from "@/components/sound"
 import { authClient } from "@/lib/authClient"
+import { openMenu } from "@/components/ContextMenu"
 
 type RoomRow = { code: string; name: string; scene: string; role: string; mine: boolean; people: number }
 type PublicRow = { code: string; name: string; scene: string; people: number; gm: string | null; last_active: string }
@@ -63,6 +64,13 @@ export default function Home() {
     setCopied(c); sfx.click()
     setTimeout(() => setCopied(""), 1600)
   }
+  const roomMenu = (e: React.MouseEvent, c: string, name: string) => openMenu(e, [
+    { title: name },
+    { label: "Entrar", icon: "door", onClick: () => enter(c) },
+    { label: "Abrir em nova aba", icon: "move", onClick: () => window.open(`/s/${c}`, "_blank") },
+    { label: "Copiar link", icon: "copy", onClick: () => copyLink(c) },
+    { label: "Copiar código", icon: "copy", hint: c, onClick: () => navigator.clipboard?.writeText(c) },
+  ])
   async function create() {
     setBusy(true); setErr("")
     const r = await fetch("/api/rooms", { method: "POST", body: JSON.stringify({ name: newName, public: isPublic }) })
@@ -77,7 +85,7 @@ export default function Home() {
       <div className="embers" aria-hidden>{Array.from({ length: 14 }, (_, i) => <i key={i} style={{ left: `${(i * 37) % 100}%`, animationDelay: `${(i * 0.9) % 7}s`, animationDuration: `${7 + (i % 5)}s` }} />)}</div>
 
       {last && (
-        <div className="return-banner rise">
+        <div className="return-banner rise" onContextMenu={(e) => roomMenu(e, last.code, last.name)}>
           <Icon n="door" size={18} />
           <span>Você estava na mesa <b>{last.name}</b> <span className="mono">({last.code})</span></span>
           <button className="btn sm" onClick={() => enter(last.code)}><Icon n="sword" size={13} /> Voltar para a sala</button>
@@ -148,7 +156,7 @@ export default function Home() {
               <div className="ribbon"><Icon n="castle" size={14} /> Suas mesas</div>
               <div className="room-list">
                 {rooms.map((r) => (
-                  <Link key={r.code} href={"/s/" + r.code} className="room-item">
+                  <Link key={r.code} href={"/s/" + r.code} className="room-item" onContextMenu={(e) => roomMenu(e, r.code, r.name)}>
                     <Icon n={r.role === "gm" ? "crown" : "user"} size={16} />
                     <span className="grow ellipsis">{r.name}</span>
                     <span className="faint" style={{ fontSize: ".8rem" }}>{r.people} <Icon n="users" size={12} /></span>
@@ -175,7 +183,7 @@ export default function Home() {
           ) : (
             <div className="pub-grid">
               {pub.map((r, i) => (
-                <div key={r.code} className="pub-card rise" style={{ animationDelay: `${i * 0.04}s` }}>
+                <div key={r.code} className="pub-card rise" style={{ animationDelay: `${i * 0.04}s` }} onContextMenu={(e) => roomMenu(e, r.code, r.name)}>
                   <div className="pub-top">
                     <span className="pub-seal"><Icon n="sword" size={16} /></span>
                     <div className="grow" style={{ minWidth: 0 }}>

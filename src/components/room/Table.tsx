@@ -3,6 +3,7 @@ import Link from "next/link"
 import { useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { Icon, Seal } from "@/components/Icon"
+import { insertInChat, openMenu } from "@/components/ContextMenu"
 import { ambienceVolume, playAmbience, setAmbienceVolume, setSoundOn, sfx, soundOn, stopAmbience, unlockAudio } from "@/components/sound"
 import { AMBIENCES, COLORS, SKINS, type Msg } from "@/lib/types"
 import { Chat } from "./Chat"
@@ -80,7 +81,14 @@ export function Table({ live }: { live: boolean }) {
         <span className="sep" />
         <span className="roomname" title={R.room.name}>{R.room.name}</span>
         {R.room.scene && <span className="scene">· {R.room.scene}</span>}
-        <button className="codebadge" onClick={copy} title="Copiar o código">{R.code}</button>
+        <button className="codebadge" onClick={copy} title="Copiar o código"
+          onContextMenu={(e) => openMenu(e, [
+            { title: `Sala ${R.code}` },
+            { label: "Copiar código", icon: "copy", hint: R.code, onClick: copy },
+            { label: "Copiar link direto", icon: "copy", onClick: copyLink },
+            (R.isGM || R.me.owner) ? { label: "Configurar a sala", icon: "gear", onClick: () => setModal("room") } : null,
+            R.me.owner ? { label: R.room.public ? "Tornar privada" : "Tornar pública", icon: R.room.public ? "eyeoff" : "eye", onClick: () => R.act("room.set", { public: !R.room.public }) } : null,
+          ])}>{R.code}</button>
         <button className="btn sm ghost linkbtn" onClick={copyLink} title="Copiar o link direto para a sala"><Icon n="copy" size={13} /> Copiar link</button>
         <span className={"chip " + (R.room.public ? "green" : "")} title={R.room.public ? "Aparece na lista de mesas abertas" : "Só entra quem tem o código"}>
           <Icon n={R.room.public ? "eye" : "eyeoff"} size={11} /> {R.room.public ? "pública" : "privada"}
@@ -92,7 +100,20 @@ export function Table({ live }: { live: boolean }) {
         </span>
         <span className="row" style={{ gap: ".15rem" }}>
           {R.members.slice(0, 8).map((m) => (
-            <span key={m.id} className="dot" style={{ background: m.color, outline: m.role === "gm" ? "2px solid var(--gold-hi)" : undefined }} title={`${m.name}${m.role === "gm" ? " (mestre)" : ""}`}>{initials(m.name)}</span>
+            <span key={m.id} className="dot" style={{ background: m.color, outline: m.role === "gm" ? "2px solid var(--gold-hi)" : undefined, cursor: "context-menu" }} title={`${m.name}${m.role === "gm" ? " (mestre)" : ""}`}
+              onContextMenu={(e) => {
+                const sh = m.sheet_id ? R.sheets.find((s) => s.id === m.sheet_id) : undefined
+                const tag = "@" + m.name.replace(/\s+/g, "")
+                openMenu(e, [
+                  { title: `${m.name}${m.role === "gm" ? " · mestre" : ""}${m.id === R.me.id ? " (você)" : ""}` },
+                  m.id !== R.me.id ? { label: "Sussurrar", icon: "whisper", onClick: () => insertInChat(`/w ${tag} `, true) } : null,
+                  { label: "Mencionar no chat", icon: "user", onClick: () => insertInChat(tag + " ") },
+                  sh ? { label: `Abrir ficha de ${sh.name}`, icon: "scroll", onClick: () => R.focus.setSheet(sh.id) } : null,
+                  m.id === R.me.id ? { label: "Editar meu perfil", icon: "gear", onClick: () => setModal("me") } : null,
+                  R.me.owner && m.id !== R.me.id ? "sep" : null,
+                  R.me.owner && m.id !== R.me.id ? { label: m.role === "gm" ? "Tornar jogador" : "Tornar mestre", icon: "crown", onClick: () => R.act("role.set", { member_id: m.id, role: m.role === "gm" ? "player" : "gm" }) } : null,
+                ])
+              }}>{initials(m.name)}</span>
           ))}
           {R.members.length > 8 && <span className="faint" style={{ fontSize: ".8rem" }}>+{R.members.length - 8}</span>}
         </span>
@@ -105,7 +126,15 @@ export function Table({ live }: { live: boolean }) {
         </div>
         <button className="iconbtn" title={sound ? "Silenciar" : "Ligar sons"} onClick={() => { setSoundOn(!sound); setSound(!sound); if (!sound) sfx.click() }}><Icon n={sound ? "sound" : "mute"} /></button>
         {(R.isGM || R.me.owner) && <button className="iconbtn" title="Configurar a sala" onClick={() => setModal("room")}><Icon n="gear" /></button>}
-        <button className="me-pill" onClick={() => setModal("me")} title="Seu perfil na mesa">
+        <button className="me-pill" onClick={() => setModal("me")} title="Seu perfil na mesa"
+          onContextMenu={(e) => openMenu(e, [
+            { title: R.me.name },
+            { label: "Editar perfil e visual", icon: "gear", onClick: () => setModal("me") },
+            { label: R.isGM ? "Deixar o posto de mestre" : "Assumir o posto de mestre", icon: "crown", onClick: () => R.act("role.set", { role: R.isGM ? "player" : "gm" }) },
+            { label: sound ? "Silenciar sons" : "Ligar sons", icon: sound ? "mute" : "sound", onClick: () => { setSoundOn(!sound); setSound(!sound) } },
+            "sep",
+            { label: "Voltar ao saguão", icon: "door", onClick: () => { location.href = "/" } },
+          ])}>
           <span className="dot" style={{ background: R.me.color }}>{initials(R.me.name)}</span>
           <span style={{ fontSize: ".9rem" }}>{R.me.name}</span>
           {R.isGM && <span className="chip gold">mestre</span>}

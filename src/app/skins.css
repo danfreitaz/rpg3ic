@@ -253,3 +253,11 @@ html[data-skin="modern"] .modal.frame, html[data-skin="modern"] .amb-menu, html[
 html:not([data-skin="medieval"]) .topbar .chip, html:not([data-skin="medieval"]) .topbar .chip.green, html:not([data-skin="medieval"]) .topbar .chip.red, html:not([data-skin="medieval"]) .topbar .chip.gold { color: var(--top-ink); }
 html:not([data-skin="medieval"]) .topbar .codebadge { color: var(--top-ink); border-color: var(--top-dim); }
 html[data-skin="minimal"] .topbar .chip.green { color: #2f6b3f; border-color: #8fc39d; }
+html:not([data-skin="medieval"]) .ctx-menu { background: var(--pop-bg); border-color: var(--line); border-radius: var(--radius-sm); box-shadow: 0 14px 34px rgba(0,0,0,.35); }
+html:not([data-skin="medieval"]) .ctx-title, html:not([data-skin="medieval"]) .ctx-item .ic { color: var(--accent); }
+html:not([data-skin="medieval"]) .ctx-item.hi, html:not([data-skin="medieval"]) .ctx-item:hover { background: var(--tint-2); color: var(--accent); }
+html[data-skin="minimal"] .ctx-item.danger, html[data-skin="mirc"] .ctx-item.danger { color: #b3261e; }
+html[data-skin="mirc"] .ctx-menu { box-shadow: var(--btn-shadow), 3px 3px 0 rgba(0,0,0,.3); border: 0; padding: 2px; animation: none; }
+html[data-skin="mirc"] .ctx-item.hi, html[data-skin="mirc"] .ctx-item:hover { background: #000080; color: #fff; }
+html[data-skin="mirc"] .ctx-item.hi .ic, html[data-skin="mirc"] .ctx-item:hover .ic { color: #fff; }
+html[data-skin="scifi"] .ctx-menu { box-shadow: 0 0 18px rgba(0,240,255,.25); }

@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import "./globals.css"
 import "./skins.css"
+import { ContextMenuHost } from "@/components/ContextMenu"
 
 export const metadata: Metadata = {
   title: "RPG3ic — mesa de RPG online",
@@ -27,6 +28,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </filter>
         </svg>
         {children}
+        <ContextMenuHost />
       </body>
     </html>
   )

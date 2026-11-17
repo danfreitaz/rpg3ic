@@ -1,6 +1,7 @@
 "use client"
 import { useEffect, useState } from "react"
 import { Icon } from "@/components/Icon"
+import { insertInChat, openMenu, type MenuItem } from "@/components/ContextMenu"
 import type { Field, Note, Sheet, Template } from "@/lib/types"
 import { barClass, hpOf, useRoom } from "./ctx"
 import { Modal } from "./Table"
@@ -56,7 +57,8 @@ function SheetsTab({ kinds }: { kinds: Sheet["kind"][] }) {
           const hp = hpOf(s, R.tpl(s.template_id))
           const owner = s.owner_member ? R.memberById(s.owner_member) : null
           return (
-            <div key={s.id} className={"sheet-item " + (current?.id === s.id ? "on" : "")} onClick={() => setSel(s.id)}>
+            <div key={s.id} className={"sheet-item " + (current?.id === s.id ? "on" : "")} onClick={() => setSel(s.id)}
+              onContextMenu={(e) => openMenu(e, sheetMenu(R, s, () => setSel(s.id)))}>
               {s.avatar ? <img className="avatar" src={s.avatar} alt="" /> : <span className="dot lg" style={{ background: owner?.color ?? "#8a7a5c" }}>{s.name[0]}</span>}
               <div className="grow">
                 <div className="row" style={{ gap: ".3rem" }}>
@@ -254,7 +256,15 @@ function Templates() {
       <p className="faint" style={{ fontSize: ".85rem", marginTop: 0 }}>A chave de cada campo vira comando e atributo de dado: <code className="mono">/pv</code>, <code className="mono">1d20+FOR</code>.</p>
       <div className="sheet-list">
         {R.room.templates.map((t) => (
-          <div key={t.id} className="sheet-item" onClick={() => setEdit(t)}>
+          <div key={t.id} className="sheet-item" onClick={() => setEdit(t)}
+            onContextMenu={(e) => openMenu(e, [
+              { title: `Modelo · ${t.name}` },
+              { label: "Editar modelo", icon: "quill", onClick: () => setEdit(t) },
+              { label: "Duplicar modelo", icon: "copy", onClick: () => R.act("tpl.save", { tpl: { ...t, id: "", name: `${t.name} (cópia)` } }) },
+              { label: `Criar ficha com este modelo`, icon: "plus", onClick: () => R.act("sheet.create", { template_id: t.id, name: t.kind === "creature" ? "Nova criatura" : t.kind === "npc" ? "Novo NPC" : "Novo personagem", mine: t.kind === "pc" }) },
+              "sep",
+              { label: "Apagar modelo", icon: "trash", danger: true, onClick: () => confirm(`Apagar o modelo ${t.name}?`) && R.act("tpl.delete", { id: t.id }) },
+            ])}>
             <Icon n={t.kind === "creature" ? "skull" : t.kind === "npc" ? "users" : "scroll"} />
             <div className="grow"><div className="nm">{t.name}</div><div className="faint" style={{ fontSize: ".75rem" }}>{{ pc: "personagem", npc: "NPC", creature: "criatura" }[t.kind]} · {t.fields.length} campos</div></div>
           </div>
@@ -328,7 +338,7 @@ function Lore({ editable }: { editable: boolean }) {
             <div className="sec-title"><Icon n={icon} size={13} /> {title} {can && <button className="iconbtn sm" onClick={() => setEdit({ kind: k, title: "", body: "", hidden: true })}><Icon n="plus" size={14} /></button>}</div>
             {list.length === 0 && <div className="empty">{k === "story" ? "Nenhuma história revelada ainda." : "Nenhum lugar no mapa do mundo."}</div>}
             {list.map((n) => (
-              <div key={n.id} className="parch note rise">
+              <div key={n.id} className="parch note rise" onContextMenu={(e) => openMenu(e, noteMenu(R, n, () => setEdit(n)))}>
                 <h4>{n.title} {n.hidden && <Icon n="eyeoff" size={13} />}<span className="grow" />
                   {R.isGM && <button className="iconbtn sm" style={{ color: "#6b4a22" }} title="Mostrar na tela de todos" onClick={() => R.chat(`/revelar ${n.title} | ${n.body}`)}><Icon n="eye" size={13} /></button>}
                   {R.isGM && <button className="iconbtn sm" style={{ color: "#6b4a22" }} onClick={() => setEdit(n)}><Icon n="quill" size={13} /></button>}
@@ -416,7 +426,7 @@ function HelpTab() {
       <div className="sec-title"><Icon n="crown" size={13} /> Só o mestre</div>
       {gm.map(([c, d]) => <div key={c}><code>{c}</code> <span className="muted">{d}</span></div>)}
       <div className="sec-title">Atalhos</div>
-      <div className="muted"><kbd>Enter</kbd> envia · <kbd>Shift+Enter</kbd> quebra linha · <kbd>↑</kbd> repete o último · <kbd>Tab</kbd> completa · <kbd>@</kbd> sugere nomes · clique nos dados para enchê-los na bandeja, botão direito tira</div>
+      <div className="muted"><kbd>Enter</kbd> envia · <kbd>Shift+Enter</kbd> quebra linha · <kbd>↑</kbd> repete o último · <kbd>Tab</kbd> completa · <kbd>@</kbd> sugere nomes · clique nos dados para enchê-los na bandeja, botão direito tira · <b>botão direito em qualquer coisa</b> (mensagem, ficha, peça, pessoa, turno, nota) abre as opções dela</div>
       {!R.isGM && <p className="faint" style={{ fontSize: ".85rem" }}>Mudar atributos de outras fichas é poder do mestre.</p>}
     </div>
   )
@@ -439,4 +449,53 @@ function RevealForm() {
       </button>
     </div>
   )
+}
+
+/** Opções do botão direito de uma ficha (lista, mapa, iniciativa). */
+export function sheetMenu(R: ReturnType<typeof useRoom>, s: Sheet, open?: () => void): MenuItem[] {
+  const tag = "@" + s.name.replace(/\s+/g, "")
+  const t = R.tpl(s.template_id)
+  const edit = R.canEdit(s)
+  const nums = (t?.fields ?? []).filter((f) => f.type === "num")
+  const hasBar = (t?.fields ?? []).some((f) => f.type === "bar")
+  const onMap = Object.values(R.room.map?.tokens ?? {}).some((k) => k.sheet_id === s.id)
+  const inInit = (R.room.init?.order ?? []).some((e) => e.sheet_id === s.id)
+  return [
+    { title: s.name },
+    { label: "Abrir ficha", icon: "scroll", onClick: () => { R.focus.setSheet(s.id); open?.() } },
+    edit && s.id !== R.me.sheet_id ? { label: "Usar esta ficha", icon: "star", onClick: () => R.act("sheet.use", { id: s.id }) } : null,
+    { label: "Mostrar status no chat", icon: "eye", onClick: () => R.chat(`/status ${tag}`) },
+    { label: "Mencionar no chat", icon: "user", onClick: () => insertInChat(tag + " ") },
+    nums.length ? { label: "Rolar 1d20 + atributo…", icon: "d20", onClick: () => insertInChat(`/r 1d20+${nums[0].key.toUpperCase()} ${tag} #`, true) } : null,
+    edit && hasBar ? "sep" : null,
+    edit && hasBar ? { label: "Dano 1", icon: "sword", onClick: () => R.chat(`/dano ${tag} 1`) } : null,
+    edit && hasBar ? { label: "Dano 5", icon: "sword", onClick: () => R.chat(`/dano ${tag} 5`) } : null,
+    edit && hasBar ? { label: "Dano…", icon: "sword", onClick: () => insertInChat(`/dano ${tag} `, true) } : null,
+    edit && hasBar ? { label: "Curar 5", icon: "heart", onClick: () => R.chat(`/cura ${tag} 5`) } : null,
+    edit && hasBar ? { label: "Descansar (encher barras)", icon: "flame", onClick: () => R.chat(`/descansar ${tag}`) } : null,
+    edit ? { label: "Adicionar condição…", icon: "flame", onClick: () => insertInChat(`/cond ${tag} `, true) } : null,
+    "sep",
+    edit && !inInit ? { label: "Rolar iniciativa", icon: "hourglass", onClick: () => R.chat(`/init 1d20${nums.some((f) => f.key === "des") ? "+DES" : ""} ${tag}`) } : null,
+    R.isGM && !onMap ? { label: "Pôr no mapa", icon: "pin", onClick: () => R.act("token.put", { label: s.name.slice(0, 2), sheet_id: s.id, x: 1, y: 1, color: R.memberById(s.owner_member ?? "")?.color ?? (s.kind === "creature" ? "#a3362a" : "#b9a27a"), hidden: s.hidden }) } : null,
+    R.isGM ? { label: s.hidden ? "Revelar aos jogadores" : "Ocultar dos jogadores", icon: s.hidden ? "eye" : "eyeoff", onClick: () => R.act("sheet.update", { id: s.id, hidden: !s.hidden }) } : null,
+    R.isGM && s.kind === "pc" ? { label: "Entregar para…", icon: "users", onClick: () => { R.focus.setSheet(s.id); open?.() } } : null,
+    edit ? "sep" : null,
+    edit ? { label: "Apagar ficha", icon: "trash", danger: true, onClick: () => confirm(`Apagar a ficha de ${s.name}? Isso não tem volta.`) && R.act("sheet.delete", { id: s.id }) } : null,
+  ]
+}
+
+/** Opções do botão direito de histórias, locais e diário. */
+export function noteMenu(R: ReturnType<typeof useRoom>, n: Note, edit: () => void): MenuItem[] {
+  const mine = n.author_member === R.me.id
+  const can = R.isGM || mine
+  return [
+    { title: n.title },
+    { label: "Copiar texto", icon: "copy", onClick: () => { navigator.clipboard?.writeText(`${n.title}\n\n${n.body}`); R.toast("Texto copiado.", true) } },
+    can ? { label: "Editar", icon: "quill", onClick: edit } : null,
+    R.isGM && n.kind !== "diary" ? { label: "Mostrar na tela de todos", icon: "eye", onClick: () => R.chat(`/revelar ${n.title} | ${n.body}`) } : null,
+    R.isGM && n.kind !== "diary" ? { label: "Ler como narração", icon: "scroll", onClick: () => R.chat(`/n ${n.title}. ${n.body}`) } : null,
+    can ? { label: n.hidden ? (n.kind === "diary" ? "Tornar pública" : "Revelar aos jogadores") : (n.kind === "diary" ? "Tornar privada" : "Ocultar dos jogadores"), icon: n.hidden ? "eye" : "eyeoff", onClick: () => R.act("note.save", { id: n.id, kind: n.kind, title: n.title, body: n.body, hidden: !n.hidden }) } : null,
+    can ? "sep" : null,
+    can ? { label: "Apagar", icon: "trash", danger: true, onClick: () => confirm(`Apagar “${n.title}”?`) && R.act("note.delete", { id: n.id }) } : null,
+  ]
 }

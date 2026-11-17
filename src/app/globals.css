@@ -646,3 +646,16 @@ html:not([data-skin="medieval"]) .theme-light .modal-back .field option { backgr
 .dice-stage { z-index: 190; }
 .toasts { z-index: 220; }
 .amb-menu { z-index: 60; }
+
+/* ── Menu do botão direito ── */
+.ctx-menu { position: fixed; z-index: 300; min-width: 210px; max-width: 300px; padding: .3rem; border-radius: 9px; background: #1f150e; border: 1px solid var(--gold-lo); box-shadow: 0 14px 34px rgba(0,0,0,.65), inset 0 1px 0 rgba(255,255,255,.05); color: var(--ink); animation: ctxin .12s var(--ease) both; font-family: var(--f-body); }
+@keyframes ctxin { from { opacity: 0; transform: scale(.96) translateY(-3px); } to { opacity: 1; transform: none; } }
+.ctx-title { padding: .35rem .6rem .25rem; font: 700 .66rem var(--f-title); letter-spacing: .12em; text-transform: uppercase; color: var(--gold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ctx-item { width: 100%; display: flex; align-items: center; gap: .55rem; padding: .38rem .6rem; border: 0; border-radius: 6px; background: transparent; color: var(--ink); cursor: pointer; text-align: left; font-size: .92rem; }
+.ctx-item .ic { color: var(--gold); }
+.ctx-item small { color: var(--ink-faint); font-family: var(--f-mono); font-size: .72rem; }
+.ctx-item.hi, .ctx-item:hover { background: rgba(201,162,75,.16); color: var(--gold-hi); }
+.ctx-item.danger { color: #f2a593; } .ctx-item.danger .ic { color: var(--blood-hi); }
+.ctx-item.danger.hi, .ctx-item.danger:hover { background: rgba(163,54,42,.25); }
+.ctx-item:disabled { opacity: .4; cursor: default; background: none; }
+.ctx-sep { height: 1px; margin: .25rem .4rem; background: var(--line-soft); }
