@@ -176,7 +176,7 @@ html[data-skin="mirc"] .btn::after { display: none; }
 html[data-skin="mirc"] .topbar.frame { box-shadow: var(--btn-shadow); padding: .3rem .5rem; }
 html[data-skin="mirc"] .topbar .brand b { font-weight: 700; font-size: 1rem; }
 html[data-skin="mirc"] .log { background: #ffffff; margin: 4px; box-shadow: inset 1px 1px 0 #808080, inset -1px -1px 0 #fff, inset 2px 2px 0 #000; font-family: var(--f-mono); font-size: 1.15rem; line-height: 1.2; gap: .1rem; }
-html[data-skin="mirc"] .msg { grid-template-columns: 0 1fr; gap: 0; animation: none; }
+html[data-skin="mirc"] .msg { display: block; animation: none; }
 html[data-skin="mirc"] .msg .dot, html[data-skin="mirc"] .msg .avatar { display: none; }
 html[data-skin="mirc"] .msg .bubble { display: block; padding: 0; }
 html[data-skin="mirc"] .msg .bubble > div:first-child { display: inline; margin-right: .45rem; }
