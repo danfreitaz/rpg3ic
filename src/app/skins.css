@@ -250,3 +250,6 @@ html[data-skin="mirc"] .modal.frame { box-shadow: var(--btn-shadow), 4px 4px 0 r
 html[data-skin="mirc"] .hints, html[data-skin="mirc"] .amb-menu { box-shadow: var(--btn-shadow); border: 0; }
 html[data-skin="scifi"] .modal-back { background: rgba(0, 6, 12, .82); }
 html[data-skin="modern"] .modal.frame, html[data-skin="modern"] .amb-menu, html[data-skin="modern"] .hints { background: #1a1d2e; }
+html:not([data-skin="medieval"]) .topbar .chip, html:not([data-skin="medieval"]) .topbar .chip.green, html:not([data-skin="medieval"]) .topbar .chip.red, html:not([data-skin="medieval"]) .topbar .chip.gold { color: var(--top-ink); }
+html:not([data-skin="medieval"]) .topbar .codebadge { color: var(--top-ink); border-color: var(--top-dim); }
+html[data-skin="minimal"] .topbar .chip.green { color: #2f6b3f; border-color: #8fc39d; }
