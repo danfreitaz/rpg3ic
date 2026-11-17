@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { Icon } from "@/components/Icon"
 import { openMenu } from "@/components/ContextMenu"
 import { EMPTY_INIT, EMPTY_MAP, type InitState, type MapState, type Note, type Token } from "@/lib/types"
-import { hhmm, hpOf, initials, useRoom } from "./ctx"
+import { hhmm, hpOf, initials, openSheetPopup, useRoom } from "./ctx"
 import { NoteEditor, noteMenu, sheetMenu } from "./LeftPanel"
 import { SHAPES, ShapeSvg } from "./tokens"
 import { Modal } from "./Table"
@@ -165,7 +165,7 @@ function MapTab() {
                 style={{ left: pos.x * CELL + 3, top: pos.y * CELL + 3, width: size, height: size, background: t.color, cursor: canMove(t) ? undefined : "default" }}
                 title={sheet?.name ?? t.label}
                 onPointerDown={(e) => { if (!canMove(t) || (R.isGM && tool !== "move" && map.fogOn)) return; e.stopPropagation(); gridRef.current?.setPointerCapture?.(e.pointerId); setDrag({ id: t.id, x: t.x, y: t.y }) }}
-                onDoubleClick={() => sheet && R.focus.setSheet(sheet.id)}
+                onDoubleClick={() => sheet && openSheetPopup(sheet.id)}
                 onContextMenu={(e) => openMenu(e, [
                   { title: sheet?.name ?? `Peça ${t.label}` },
                   sheet ? { label: "Abrir ficha", icon: "scroll", onClick: () => R.focus.setSheet(sheet.id) } : null,
@@ -323,7 +323,7 @@ function InitTab() {
               </div>
               <div style={{ minWidth: 0 }}>
                 <div className="row" style={{ gap: ".3rem" }}>
-                  <b style={{ fontFamily: "var(--f-title)", fontSize: ".88rem", cursor: s ? "pointer" : undefined }} onClick={() => s && R.focus.setSheet(s.id)}>{e.name}</b>
+                  <b style={{ fontFamily: "var(--f-title)", fontSize: ".88rem", cursor: s ? "pointer" : undefined }} onClick={() => s && openSheetPopup(s.id)}>{e.name}</b>
                   {s?.hidden && <Icon n="eyeoff" size={12} />}
                 </div>
                 {hp && <div className="mini-bar"><i style={{ width: hp.pct + "%" }} /></div>}

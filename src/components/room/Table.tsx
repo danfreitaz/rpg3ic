@@ -6,10 +6,10 @@ import { Icon, Seal } from "@/components/Icon"
 import { insertInChat, openMenu } from "@/components/ContextMenu"
 import { ambienceVolume, playAmbience, setAmbienceVolume, setSoundOn, sfx, soundOn, stopAmbience, unlockAudio } from "@/components/sound"
 import { AMBIENCES, COLORS, SKINS, type Msg } from "@/lib/types"
-import { Chat } from "./Chat"
+import { Chat, ImageLightbox } from "./Chat"
 import { initials, useRoom } from "./ctx"
 import { DiceStage } from "./DiceStage"
-import { LeftPanel } from "./LeftPanel"
+import { LeftPanel, SheetView } from "./LeftPanel"
 import { RightPanel } from "./RightPanel"
 
 export function Table({ live }: { live: boolean }) {
@@ -18,6 +18,13 @@ export function Table({ live }: { live: boolean }) {
   const [modal, setModal] = useState<"room" | "me" | null>(null)
   const [toss, setToss] = useState<Msg | null>(null)
   const [reveal, setReveal] = useState<Msg | null>(null)
+  const [popup, setPopup] = useState<string | null>(null)
+  useEffect(() => {
+    const on = (e: Event) => setPopup((e as CustomEvent).detail as string)
+    window.addEventListener("r3:sheet", on)
+    return () => window.removeEventListener("r3:sheet", on)
+  }, [])
+  const popSheet = popup ? R.sheets.find((s) => s.id === popup) : undefined
   const [skinPick, setSkinPick] = useState<string>("")
   const [ambOpen, setAmbOpen] = useState(false)
   useEffect(() => { try { setSkinPick(localStorage.getItem("r3_skin") || "") } catch {} }, [])
@@ -57,6 +64,7 @@ export function Table({ live }: { live: boolean }) {
       else if (m.kind === "shout") sfx.damage()
       else if (m.kind === "scene") sfx.door()
       else if (m.kind === "reveal") { sfx.narration(); sfx.paper(); setReveal(m) }
+      else if (m.kind === "image") sfx.paper()
       else if (m.kind === "system") {
         m.data?.icon === "door" ? sfx.door() : sfx.paper()
         // O mestre trocou o visual da mesa: todos passam a ver o novo visual (cada um pode trocar de novo depois).
@@ -160,11 +168,17 @@ export function Table({ live }: { live: boolean }) {
       {modal === "room" && <RoomSettings onClose={() => setModal(null)} />}
       {modal === "me" && <MeSettings onClose={() => setModal(null)} skinPick={skinPick} setSkinPick={(s) => { setSkinPick(s); try { s ? localStorage.setItem("r3_skin", s) : localStorage.removeItem("r3_skin") } catch {} }} />}
       {reveal && <RevealView m={reveal} onClose={() => setReveal(null)} />}
+      <ImageLightbox />
+      {popSheet && (
+        <Modal title={popSheet.name} icon="scroll" wide onClose={() => setPopup(null)}>
+          <SheetView key={popSheet.id} s={popSheet} wide />
+        </Modal>
+      )}
     </div>
   )
 }
 
-export function Modal({ title, icon, onClose, children }: { title: string; icon: string; onClose: () => void; children: React.ReactNode }) {
+export function Modal({ title, icon, onClose, children, wide }: { title: string; icon: string; onClose: () => void; children: React.ReactNode; wide?: boolean }) {
   useEffect(() => {
     const k = (e: KeyboardEvent) => e.key === "Escape" && onClose()
     window.addEventListener("keydown", k)
@@ -174,7 +188,7 @@ export function Modal({ title, icon, onClose, children }: { title: string; icon:
   if (typeof document === "undefined") return null
   return createPortal(
     <div className="modal-back" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="frame modal rise">
+      <div className={"frame modal rise" + (wide ? " wide" : "")}>
         <span className="corner-tr" /><span className="corner-bl" />
         <div className="row"><h2 className="grow"><Icon n={icon} /> {title}</h2><button className="iconbtn" onClick={onClose}><Icon n="x" /></button></div>
         {children}

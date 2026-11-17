@@ -217,6 +217,8 @@ export async function handleChat(c: Ctx, raw: string): Promise<Out> {
   const w = await load(c)
   if (!text.startsWith("/")) {
     if (looksLikeRoll(text)) { const r = await doRoll(c, w, text, false); if (!r.error) return { ok: true } }
+    const img = /^(https:\/\/\S+\.(?:png|jpe?g|gif|webp)(?:\?\S*)?)(?:\s+([\s\S]*))?$/i.exec(text)
+    if (img) { await post(c, { kind: "image", body: (img[2] ?? "").trim(), speaker: voice(c, w), data: { url: img[1], by: c.me.name } }); return { ok: true } }
     const ooc = /^\(\(([\s\S]+)\)\)$/.exec(text)
     if (ooc) { await post(c, { kind: "ooc", body: ooc[1].trim() }); return { ok: true } }
     const act = /^\*([^*]+)\*$/.exec(text)
@@ -383,6 +385,12 @@ export async function handleChat(c: Ctx, raw: string): Promise<Out> {
       const list = c.isGM ? w.sheets : w.sheets.filter((x) => x.owner_member === c.me.id)
       if (!list.length && !s) return { error: "Você não tem fichas." }
       await post(c, { kind: "system", to: c.me.id, data: { icon: "flask" }, body: "Bolsas: " + list.map((x) => `${x.name} $ ${Number(x.data?._money ?? 0)}`).join(" · ") })
+      return { ok: true }
+    }
+    case "img": case "imagem": case "foto": {
+      const m = /^(https:\/\/\S+)(?:\s+([\s\S]*))?$/.exec(arg)
+      if (!m) return { error: "Use /img https://link-da-imagem legenda (ou cole/arraste a imagem no chat)." }
+      await post(c, { kind: "image", body: (m[2] ?? "").trim(), speaker: voice(c, w), data: { url: m[1], by: c.me.name } })
       return { ok: true }
     }
     case "ooc": case "off": case "fora":

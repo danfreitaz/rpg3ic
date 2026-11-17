@@ -29,6 +29,7 @@ const COMMANDS: { c: string; d: string; gm?: boolean }[] = [
   { c: "/descansar @alvo", d: "Enche todas as barras (@todos para o grupo)" },
   { c: "/status @alvo", d: "Mostra o resumo da ficha no chat" },
   { c: "/moeda", d: "Cara ou coroa" },
+  { c: "/img https://link.jpg legenda", d: "Mostra uma imagem da internet (ou cole/arraste uma imagem)" },
   { c: "/grana @alvo +50", d: "Dá, tira (−20) ou define (=100) a grana de uma ficha" },
   { c: "/teste ST", d: "GURPS: 3d6 contra o atributo (ou /teste 12)" },
   { c: "/pagar @alvo 20", d: "Paga com o dinheiro da sua ficha ativa" },
@@ -81,6 +82,30 @@ export function Chat() {
     inputRef.current?.focus()
   }
   const clearPool = () => { setPool({}); setMod(0) }
+  const [uploading, setUploading] = useState(false)
+  const [dropping, setDropping] = useState(false)
+  const [emojiOpen, setEmojiOpen] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
+  async function sendImage(file: File) {
+    if (!file.type.startsWith("image/")) return R.toast("Esse arquivo não é uma imagem.")
+    setUploading(true)
+    try {
+      const { data, w, h } = await shrinkImage(file)
+      const caption = text.trim() && !text.trim().startsWith("/") ? text.trim() : ""
+      const r = await fetch(`/api/rooms/${R.code}/image`, { method: "POST", body: JSON.stringify({ data, w, h, caption }) })
+      if (!r.ok) R.toast((await r.json().catch(() => ({}))).error || "Não foi possível enviar a imagem.")
+      else if (caption) { autoText.current = ""; setText("") }
+      stick.current = true
+    } catch { R.toast("Não consegui ler essa imagem.") }
+    setUploading(false)
+  }
+  const insertEmoji = (e: string) => {
+    const el = inputRef.current
+    const at = el?.selectionStart ?? text.length
+    const next = text.slice(0, at) + e + text.slice(el?.selectionEnd ?? at)
+    setText(next)
+    setTimeout(() => { if (el) { el.focus(); el.setSelectionRange(at + e.length, at + e.length) } }, 0)
+  }
   // Outras partes da mesa (menus do botão direito) podem escrever no campo de fala
   useEffect(() => {
     const on = (e: Event) => {
@@ -153,7 +178,11 @@ export function Chat() {
 
 
   return (
-    <section className="frame chat">
+    <section className={"frame chat" + (dropping ? " dropping" : "")}
+      onDragOver={(e) => { if ([...e.dataTransfer.types].includes("Files")) { e.preventDefault(); setDropping(true) } }}
+      onDragLeave={(e) => { if (e.currentTarget === e.target) setDropping(false) }}
+      onDrop={(e) => { const f = e.dataTransfer.files?.[0]; setDropping(false); if (f) { e.preventDefault(); sendImage(f) } }}>
+      {dropping && <div className="drop-hint"><Icon n="image" size={30} /> Solte a imagem para enviar à mesa</div>}
       <span className="corner-tr" /><span className="corner-bl" />
       <div className="chat-head">
         <Icon n="scroll" />
@@ -215,7 +244,14 @@ export function Chat() {
               {npcs.map((s) => <option key={s.id} value={s.name}>{s.kind === "creature" ? "🐉" : "🎭"} {s.name}</option>)}
             </select>
           )}
-          <textarea ref={inputRef} className="field" rows={1} value={text} placeholder={voice === "__narr" ? "Narre a cena…" : voice ? `Fale como ${voice}… (*ação* entre asteriscos)` : "Fale, *aja* ou digite / para comandos…"}
+          <div className="compose-tools">
+            <button className={"iconbtn " + (emojiOpen ? "on" : "")} title="Emojis" onClick={() => setEmojiOpen((o) => !o)}><Icon n="smile" size={17} /></button>
+            <button className="iconbtn" title="Enviar imagem (também dá para colar ou arrastar)" disabled={uploading} onClick={() => fileRef.current?.click()}>{uploading ? <span className="loading-dice"><Icon n="d20" size={15} /></span> : <Icon n="image" size={17} />}</button>
+            <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) sendImage(f) }} />
+            {emojiOpen && <EmojiPicker onPick={insertEmoji} onClose={() => setEmojiOpen(false)} />}
+          </div>
+          <textarea ref={inputRef} className="field" rows={1} value={text}
+            onPaste={(e) => { const f = [...e.clipboardData.files].find((x) => x.type.startsWith("image/")); if (f) { e.preventDefault(); sendImage(f) } }} placeholder={voice === "__narr" ? "Narre a cena…" : voice ? `Fale como ${voice}… (*ação* entre asteriscos)` : "Fale, *aja* ou digite / para comandos…"}
             onChange={(e) => { setText(e.target.value); setHpos(-1) }} onKeyDown={onKey} />
           <button className="btn" onClick={() => send()} disabled={sending || !text.trim()} title="Enviar (Enter)"><Icon n="send" size={15} /></button>
         </div>
@@ -264,7 +300,7 @@ function Line({ m, prev }: { m: Msg; prev?: Msg }) {
             <span className="time">{hhmm(m.created_at)}</span>
           </div>
         )}
-        {m.kind === "roll" ? <RollCard m={m} /> : m.kind === "change" ? <Changes m={m} /> : m.kind === "coin" ? <Coin m={m} /> : m.kind === "oracle" ? <Oracle m={m} /> : m.kind === "status" ? <Status m={m} /> : m.kind === "money" ? <Money m={m} /> : <div className="body">{m.body}</div>}
+        {m.kind === "roll" ? <RollCard m={m} /> : m.kind === "change" ? <Changes m={m} /> : m.kind === "coin" ? <Coin m={m} /> : m.kind === "oracle" ? <Oracle m={m} /> : m.kind === "status" ? <Status m={m} /> : m.kind === "money" ? <Money m={m} /> : m.kind === "image" ? <ChatImage m={m} /> : <div className="body">{m.body}</div>}
       </div>
     </div>
   )
@@ -435,6 +471,7 @@ function exportMd(R: ReturnType<typeof useRoom>) {
       case "coin": out.push(`🪙 ${m.speaker} jogou a moeda${m.body ? ` (${m.body})` : ""}: **${m.data?.face}**  `); break
       case "oracle": out.push(`🔮 ${m.speaker} perguntou ao oráculo: “${m.body}” → **${m.data?.answer}**  `); break
       case "turn": out.push(`⏳ Rodada ${m.data?.round} — vez de ${m.data?.name}  `); break
+      case "image": out.push("", `![${m.body || "imagem"}](${new URL(m.data?.url ?? "", location.origin).href})${m.body ? `  \n*${m.speaker}: ${m.body}*` : `  \n*${m.speaker}*`}`, ""); break
       case "money": out.push(m.data?.pay ? `💰 ${m.data.pay.from} pagou $ ${m.data.pay.n} a ${m.data.pay.to}  ` : (m.data?.ch ?? []).map((c: any) => `💰 ${c.name}: $ ${c.from} → $ ${c.to}  `).join("\n")); break
       case "ooc": out.push(`<sub>(${m.speaker}, fora do jogo: ${m.body})</sub>  `); break
       case "status": break
@@ -472,7 +509,9 @@ function msgMenu(R: ReturnType<typeof useRoom>, m: Msg, send: (raw?: string) => 
     speakerIsPerson ? { label: `Mencionar ${m.speaker}`, icon: "user", onClick: () => insertInChat(tag(sheet?.name ?? m.speaker) + " ") } : null,
     author && !isMine && speakerIsPerson ? { label: `Sussurrar para ${author.name}`, icon: "whisper", onClick: () => insertInChat(`/w ${tag(author.name)} `, true) } : null,
     sheet ? { label: `Abrir a ficha de ${sheet.name}`, icon: "scroll", onClick: () => R.focus.setSheet(sheet.id) } : null,
-    m.data?.image ? { label: "Abrir a imagem", icon: "eye", onClick: () => window.open(m.data.image, "_blank", "noopener") } : null,
+    m.data?.image || m.data?.url ? { label: "Abrir a imagem", icon: "image", onClick: () => window.open(m.data.image || m.data.url, "_blank", "noopener") } : null,
+    m.kind === "image" ? { label: "Copiar link da imagem", icon: "copy", onClick: () => copy(new URL(m.data.url, location.origin).href, "Link") } : null,
+    m.kind === "image" && R.isGM ? { label: "Revelar na tela de todos", icon: "eye", onClick: () => send(`/revelar ${new URL(m.data.url, location.origin).href} ${m.body || "Imagem"} | `) } : null,
     R.isGM && (m.kind === "narration" || m.kind === "reveal") ? { label: "Mostrar de novo na tela", icon: "eye", onClick: () => send(m.kind === "reveal" ? `/revelar ${m.data?.image ? m.data.image + " " : ""}${m.data?.title || "Revelação"} | ${m.body}` : `/n ${m.body}`) } : null,
     R.isGM ? "sep" : null,
     R.isGM ? { label: "Apagar mensagem", icon: "trash", danger: true, onClick: () => R.act("msg.delete", { seq: m.seq }) } : null,
@@ -494,6 +533,79 @@ function Money({ m }: { m: Msg }) {
           </div>
         )
       })}
+    </div>
+  )
+}
+
+/** Reduz e comprime a imagem no navegador antes de enviar (orçamento zero agradece). */
+async function shrinkImage(file: File): Promise<{ data: string; w: number; h: number }> {
+  const toData = (b: Blob) => new Promise<string>((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result)); r.onerror = rej; r.readAsDataURL(b) })
+  const bmp = await createImageBitmap(file)
+  const { width: w0, height: h0 } = bmp
+  if (file.type === "image/gif" && file.size <= 850 * 1024) return { data: await toData(file), w: w0, h: h0 } // GIF animado inteiro
+  for (const [max, q] of [[1600, 0.82], [1280, 0.75], [960, 0.7], [720, 0.62]] as const) {
+    const k = Math.min(1, max / Math.max(w0, h0))
+    const w = Math.round(w0 * k), h = Math.round(h0 * k)
+    const cv = document.createElement("canvas"); cv.width = w; cv.height = h
+    cv.getContext("2d")!.drawImage(bmp, 0, 0, w, h)
+    const blob = await new Promise<Blob | null>((res) => cv.toBlob(res, "image/webp", q))
+    if (blob && blob.size <= 850 * 1024) return { data: await toData(blob), w, h }
+  }
+  throw new Error("grande demais")
+}
+
+let showImage: (src: string, caption?: string) => void = () => {}
+function ChatImage({ m }: { m: Msg }) {
+  const src = m.data?.url as string
+  const ratio = m.data?.w && m.data?.h ? `${m.data.w} / ${m.data.h}` : undefined
+  return (
+    <div className="chat-img-wrap">
+      <img className="chat-img" src={src} alt={m.body || "imagem"} loading="lazy" style={{ aspectRatio: ratio }} onClick={() => showImage(src, m.body)}
+        onError={(e) => { e.currentTarget.replaceWith(Object.assign(document.createElement("span"), { className: "faint", textContent: "(imagem indisponível)" })) }} />
+      {m.body && <div className="body">{m.body}</div>}
+    </div>
+  )
+}
+
+export function ImageLightbox() {
+  const [img, setImg] = useState<{ src: string; caption?: string } | null>(null)
+  showImage = (src, caption) => setImg({ src, caption })
+  useEffect(() => {
+    if (!img) return
+    const k = (e: KeyboardEvent) => e.key === "Escape" && setImg(null)
+    window.addEventListener("keydown", k)
+    return () => window.removeEventListener("keydown", k)
+  }, [img])
+  if (!img) return null
+  return (
+    <div className="lightbox" onClick={() => setImg(null)}>
+      <img src={img.src} alt={img.caption || ""} />
+      {img.caption && <p>{img.caption}</p>}
+    </div>
+  )
+}
+
+const EMOJIS: [string, string][] = [
+  ["Aventura", "⚔️ 🛡️ 🏹 🗡️ 🪓 🔮 🧪 📜 🗺️ 💰 💎 👑 🏰 🗝️ 🚪 🕯️ ⛓️ 🎲 🎭 🎵 🍺 🍖 🔥 ❄️ ⚡ 🌙 ☀️ 🌧️ 🌲 ⛰️"],
+  ["Criaturas", "🐉 🧙 🧝 🧛 🧟 🧚 🧞 💀 👻 👹 👺 🕷️ 🦇 🐺 🐍 🦂 🐀 🦅 🐎 🐗"],
+  ["Rostos", "😀 😂 🤣 😅 😉 😎 🤔 😐 😏 🙄 😬 😴 😱 😡 😭 🥲 🤯 🥳 😇 😈 🤡 🤫 🫡 🤐"],
+  ["Gestos", "👍 👎 👏 🙏 💪 ✌️ 🤞 👀 ❤️ 💔 ✨ 💥 💤 ❗ ❓ ✅ ❌ 🎉 🏆 ⭐"],
+]
+function EmojiPicker({ onPick, onClose }: { onPick: (e: string) => void; onClose: () => void }) {
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const down = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node) && !(e.target as HTMLElement).closest(".compose-tools")) onClose() }
+    window.addEventListener("mousedown", down)
+    return () => window.removeEventListener("mousedown", down)
+  }, [onClose])
+  return (
+    <div className="emoji-pop rise" ref={ref}>
+      {EMOJIS.map(([title, list]) => (
+        <div key={title}>
+          <div className="emoji-title">{title}</div>
+          <div className="emoji-grid">{list.split(" ").map((e) => <button key={e} onClick={() => onPick(e)}>{e}</button>)}</div>
+        </div>
+      ))}
     </div>
   )
 }

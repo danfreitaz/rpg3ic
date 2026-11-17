@@ -3,7 +3,7 @@ import { useEffect, useState } from "react"
 import { Icon } from "@/components/Icon"
 import { insertInChat, openMenu, type MenuItem } from "@/components/ContextMenu"
 import type { Field, Note, Sheet, Template } from "@/lib/types"
-import { barClass, hpOf, useRoom } from "./ctx"
+import { barClass, hpOf, openSheetPopup, useRoom } from "./ctx"
 import { Modal } from "./Table"
 
 type Tab = "sheets" | "gm" | "world" | "help"
@@ -58,7 +58,7 @@ function SheetsTab({ kinds }: { kinds: Sheet["kind"][] }) {
           const hp = hpOf(s, R.tpl(s.template_id))
           const owner = s.owner_member ? R.memberById(s.owner_member) : null
           return (
-            <div key={s.id} className={"sheet-item " + (current?.id === s.id ? "on" : "")} onClick={() => toggle(s.id)} title={current?.id === s.id ? "Clique para recolher a ficha" : "Clique para abrir a ficha"}
+            <div key={s.id} className={"sheet-item " + (current?.id === s.id ? "on" : "")} onClick={() => toggle(s.id)} onDoubleClick={() => openSheetPopup(s.id)} title={current?.id === s.id ? "Clique para recolher · duplo clique abre em janela" : "Clique para abrir · duplo clique abre em janela"}
               onContextMenu={(e) => openMenu(e, sheetMenu(R, s, () => setSel(s.id)))}>
               {s.avatar ? <img className="avatar" src={s.avatar} alt="" /> : <span className="dot lg" style={{ background: owner?.color ?? "#8a7a5c" }}>{s.name[0]}</span>}
               <div className="grow">
@@ -111,7 +111,7 @@ function CreateSheet({ tpls, onClose, onMade }: { tpls: Template[]; onClose: () 
   )
 }
 
-export function SheetView({ s }: { s: Sheet }) {
+export function SheetView({ s, wide }: { s: Sheet; wide?: boolean }) {
   const R = useRoom()
   const t = R.tpl(s.template_id)
   const edit = R.canEdit(s)
@@ -138,13 +138,14 @@ export function SheetView({ s }: { s: Sheet }) {
   const inInit = (R.room.init?.order ?? []).some((e) => e.sheet_id === s.id)
 
   return (
-    <div className="parch sheet rise">
+    <div className={"parch sheet rise" + (wide ? " wide" : "")}>
       <div className="sheet-head">
         {s.avatar ? <img className="avatar" src={s.avatar} alt="" /> : <div className="ph"><Icon n="user" size={24} /></div>}
         <div className="grow">
           {edit ? <input className="field" style={{ font: "700 1.1rem var(--f-title)", padding: ".2em .4em" }} value={nm} onChange={(e) => setNm(e.target.value)} onBlur={() => nm !== s.name && R.act("sheet.update", { id: s.id, name: nm })} /> : <h3>{s.name}</h3>}
-          <div style={{ fontSize: ".8rem", color: "#6b4a22" }}>{t.system ? `${t.system} · ` : ""}{t.name}{s.owner_member ? ` · de ${R.memberById(s.owner_member)?.name ?? "?"}` : ""}</div>
+          <div className="sheet-sub">{t.system ? `${t.system} · ` : ""}{t.name}{s.owner_member ? ` · de ${R.memberById(s.owner_member)?.name ?? "?"}` : ""}</div>
         </div>
+        {!wide && <button className="iconbtn sm sheet-pop" title="Abrir em janela" onClick={() => openSheetPopup(s.id)}><Icon n="expand" size={14} /></button>}
       </div>
 
       <div className="money-row">
@@ -215,6 +216,7 @@ export function SheetView({ s }: { s: Sheet }) {
         </div>
       )}
 
+      <div className="sheet-texts">
       {texts.map((f) => (
         <div key={f.key}>
           <label className="lbl">{f.label}</label>
@@ -223,6 +225,7 @@ export function SheetView({ s }: { s: Sheet }) {
             : <input className="field" readOnly={!edit} value={local[f.key] ?? ""} onChange={(e) => setLocal((l) => ({ ...l, [f.key]: e.target.value }))} onBlur={(e) => edit && e.target.value !== s.data[f.key] && save({ [f.key]: e.target.value })} />}
         </div>
       ))}
+      </div>
 
       {edit && (
         <>
@@ -493,6 +496,7 @@ export function sheetMenu(R: ReturnType<typeof useRoom>, s: Sheet, open?: () => 
   return [
     { title: s.name },
     { label: "Abrir ficha", icon: "scroll", onClick: () => { R.focus.setSheet(s.id); open?.() } },
+    { label: "Abrir em janela", icon: "expand", onClick: () => openSheetPopup(s.id) },
     edit && s.id !== R.me.sheet_id ? { label: "Usar esta ficha", icon: "star", onClick: () => R.act("sheet.use", { id: s.id }) } : null,
     { label: "Mostrar status no chat", icon: "eye", onClick: () => R.chat(`/status ${tag}`) },
     { label: "Mencionar no chat", icon: "user", onClick: () => insertInChat(tag + " ") },

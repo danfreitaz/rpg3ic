@@ -21,6 +21,9 @@ export type RoomData = {
   focus: { sheet: string | null; setSheet: (id: string | null) => void }
 }
 
+/** Abre a ficha numa janela central, larga. */
+export const openSheetPopup = (id: string) => window.dispatchEvent(new CustomEvent("r3:sheet", { detail: id }))
+
 export const Ctx = createContext<RoomData | null>(null)
 export const useRoom = () => useContext(Ctx)!
 

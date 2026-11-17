@@ -279,3 +279,8 @@ html[data-skin="scifi"] .mini-bar.mb-pm i, html[data-skin="scifi"] .bar.pm i { b
 html[data-skin="mirc"] .mini-bar.mb-pm i, html[data-skin="mirc"] .bar.pm i { background: #000080; }
 html:not([data-skin="medieval"]) .money-val small, html:not([data-skin="medieval"]) .attr-mod { color: var(--ink-dim); }
 html:not([data-skin="medieval"]) .shape-opt.on { border-color: var(--accent); background: var(--tint-2); }
+html:not([data-skin="medieval"]) .emoji-pop { background: var(--pop-bg); border-color: var(--line); }
+html:not([data-skin="medieval"]) .emoji-title { color: var(--accent); }
+html:not([data-skin="medieval"]) .chat-img { border-color: var(--line); }
+html:not([data-skin="medieval"]) .drop-hint { color: var(--accent); background: var(--pop-bg); opacity: .95; }
+html[data-skin="mirc"] .emoji-pop { box-shadow: var(--btn-shadow); border: 0; }

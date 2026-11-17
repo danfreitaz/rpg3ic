@@ -4,7 +4,7 @@ import { ctx, fail, json, type Ctx } from "@/lib/room"
 import { AMBIENCES, SKINS, blankData, EMPTY_INIT, norm, type Field, type Sheet, type Template, type Token } from "@/lib/types"
 
 // Chaves que colidiriam com comandos do chat.
-const RESERVED = new Set(["r", "rolar", "roll", "dado", "sr", "rs", "gmr", "secreto", "me", "acao", "a", "w", "s", "sussurro", "sussurrar", "n", "narrar", "narracao", "npc", "como", "desfazer", "undo", "init", "iniciativa", "proximo", "prox", "next", "turno", "cond", "condicao", "gm", "mestre", "moeda", "coin", "oraculo", "sorte", "destino", "dano", "ferir", "cura", "curar", "descansar", "descanso", "status", "ficha", "ooc", "off", "fora", "grito", "gritar", "cena", "quem", "presentes", "ajuda", "help", "comandos", "revelar", "mostrar", "trilha", "musica", "dinheiro", "grana", "ouro", "moedas", "money", "pagar", "dar", "pay", "saldo", "bolsa", "teste", "nh"])
+const RESERVED = new Set(["r", "rolar", "roll", "dado", "sr", "rs", "gmr", "secreto", "me", "acao", "a", "w", "s", "sussurro", "sussurrar", "n", "narrar", "narracao", "npc", "como", "desfazer", "undo", "init", "iniciativa", "proximo", "prox", "next", "turno", "cond", "condicao", "gm", "mestre", "moeda", "coin", "oraculo", "sorte", "destino", "dano", "ferir", "cura", "curar", "descansar", "descanso", "status", "ficha", "ooc", "off", "fora", "grito", "gritar", "cena", "quem", "presentes", "ajuda", "help", "comandos", "revelar", "mostrar", "trilha", "musica", "dinheiro", "grana", "ouro", "moedas", "money", "pagar", "dar", "pay", "saldo", "bolsa", "teste", "nh", "img", "imagem", "foto"])
 const str = (v: any, max: number) => String(v ?? "").trim().slice(0, max)
 const url = (v: any) => { const s = str(v, 600); return /^https:\/\/\S+$/.test(s) ? s : "" }
 const hex = (v: any, d = "#c9a24b") => (/^#[0-9a-f]{6}$/i.test(String(v)) ? String(v) : d)
@@ -148,10 +148,14 @@ async function act(c: Ctx, b: any): Promise<any> {
       await sql`UPDATE rooms SET init = ${JSON.stringify(init)}::jsonb WHERE id = ${c.room.id}`
       return {}
     }
-    case "msg.delete":
+    case "msg.delete": {
       if (!c.isGM) return { error: "Só o mestre apaga mensagens." }
-      await sql`DELETE FROM messages WHERE seq = ${Number(b.seq) || 0} AND room_id = ${c.room.id}`
+      const del = await sql`DELETE FROM messages WHERE seq = ${Number(b.seq) || 0} AND room_id = ${c.room.id} RETURNING data`
+      const delUrl = String(del[0]?.data?.url ?? "")
+      const imgId = /^\/api\/img\/([0-9a-f-]{36})$/.exec(delUrl)?.[1]
+      if (imgId) await sql`DELETE FROM images WHERE id = ${imgId} AND room_id = ${c.room.id}`
       return {}
+    }
     case "init.next":
       return nextTurn(c)
     // ───── Sala e pessoas
