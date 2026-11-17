@@ -63,7 +63,8 @@ export function Chat() {
   useEffect(() => {
     // A bandeja escreve no campo de fala; se o jogador já escreveu outra coisa, não pisa nela.
     const next = expr ? `/r ${expr}` : ""
-    setText((t) => (t === "" || t === autoText.current ? next : t))
+    const prev = autoText.current
+    setText((t) => (t === "" || t === prev ? next : t))
     autoText.current = next
   }, [expr])
   const addDie = (sides: number, d = 1) => {
