@@ -29,9 +29,10 @@ const COMMANDS: { c: string; d: string; gm?: boolean }[] = [
   { c: "/descansar @alvo", d: "Enche todas as barras (@todos para o grupo)" },
   { c: "/status @alvo", d: "Mostra o resumo da ficha no chat" },
   { c: "/moeda", d: "Cara ou coroa" },
-  { c: "/dinheiro @alvo +50", d: "Dá, tira (−20) ou define (=100) o dinheiro de uma ficha" },
+  { c: "/grana @alvo +50", d: "Dá, tira (−20) ou define (=100) a grana de uma ficha" },
+  { c: "/teste ST", d: "GURPS: 3d6 contra o atributo (ou /teste 12)" },
   { c: "/pagar @alvo 20", d: "Paga com o dinheiro da sua ficha ativa" },
-  { c: "/saldo", d: "Mostra o dinheiro das suas fichas (só você vê)" },
+  { c: "/saldo", d: "Mostra a grana das suas fichas (só você vê)" },
   { c: "/oraculo vai chover?", d: "Pergunta de sim/não ao destino (2d6)" },
   { c: "/ooc texto", d: "Fala fora do personagem (ou ((entre parênteses duplos)))" },
   { c: "/grito texto", d: "Grita, em letras garrafais" },
@@ -291,6 +292,7 @@ function RollCard({ m }: { m: Msg }) {
         ))}
         <span className="total">{r.total}</span>
       </div>
+      {m.data?.under && <span className={"chip " + (m.data.under.ok ? "green" : "red")} style={{ alignSelf: "flex-start" }}>{m.data.under.ok ? `Sucesso por ${m.data.under.margin}` : `Falha por ${-m.data.under.margin}`} · alvo {m.data.under.alvo}</span>}
       {r.crit && <span className="chip gold" style={{ alignSelf: "flex-start" }}><Icon n="star" size={11} /> Crítico!</span>}
       {r.fumble && <span className="chip red" style={{ alignSelf: "flex-start" }}><Icon n="skull" size={11} /> Falha crítica</span>}
     </div>
@@ -357,7 +359,7 @@ function Status({ m }: { m: Msg }) {
         <span className="muted" style={{ width: 110 }}>Condições</span>
         {(d.conds ?? []).length ? d.conds.map((c: any) => <span key={c.n} className="chip violet">{c.n}{c.r !== null && c.r !== undefined ? ` · ${c.r} rod.` : ""}</span>) : <span className="faint">nenhuma</span>}
       </div>
-      {d.money !== undefined && <div className="row" style={{ gap: ".4rem", fontSize: ".85rem" }}><span className="muted" style={{ width: 110 }}>Dinheiro</span><b className="money">$ {d.money}</b></div>}
+      {d.money !== undefined && <div className="row" style={{ gap: ".4rem", fontSize: ".85rem" }}><span className="muted" style={{ width: 110 }}>Grana</span><b className="money">$ {d.money}</b></div>}
     </div>
   )
 }
@@ -487,7 +489,7 @@ function Money({ m }: { m: Msg }) {
         return (
           <div key={i} className="change">
             {!d.pay && <span className="coin-mini">$</span>}
-            <span><b>{c.name}</b> · dinheiro: $ {c.from} → <b className="money">$ {c.to}</b></span>
+            <span><b>{c.name}</b> · grana: $ {c.from} → <b className="money">$ {c.to}</b></span>
             <span className={"delta " + (delta < 0 ? "down" : "up")}>{delta > 0 ? "+" : ""}{delta}</span>
           </div>
         )

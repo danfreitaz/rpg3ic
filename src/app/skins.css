@@ -277,3 +277,5 @@ html[data-skin] .mini-bar.mb-pm i, html[data-skin] .bar.pm i { background: linea
 html[data-skin] .mini-bar.mb-other i, html[data-skin] .bar.other i { background: linear-gradient(90deg, #3f7a3e, #8fc98a); box-shadow: none; }
 html[data-skin="scifi"] .mini-bar.mb-pm i, html[data-skin="scifi"] .bar.pm i { background: linear-gradient(90deg, #0077ff, #00f0ff); box-shadow: 0 0 8px #00b7ff; }
 html[data-skin="mirc"] .mini-bar.mb-pm i, html[data-skin="mirc"] .bar.pm i { background: #000080; }
+html:not([data-skin="medieval"]) .money-val small, html:not([data-skin="medieval"]) .attr-mod { color: var(--ink-dim); }
+html:not([data-skin="medieval"]) .shape-opt.on { border-color: var(--accent); background: var(--tint-2); }

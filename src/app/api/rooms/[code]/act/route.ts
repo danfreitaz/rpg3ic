@@ -4,7 +4,7 @@ import { ctx, fail, json, type Ctx } from "@/lib/room"
 import { AMBIENCES, SKINS, blankData, EMPTY_INIT, norm, type Field, type Sheet, type Template, type Token } from "@/lib/types"
 
 // Chaves que colidiriam com comandos do chat.
-const RESERVED = new Set(["r", "rolar", "roll", "dado", "sr", "rs", "gmr", "secreto", "me", "acao", "a", "w", "s", "sussurro", "sussurrar", "n", "narrar", "narracao", "npc", "como", "desfazer", "undo", "init", "iniciativa", "proximo", "prox", "next", "turno", "cond", "condicao", "gm", "mestre", "moeda", "coin", "oraculo", "sorte", "destino", "dano", "ferir", "cura", "curar", "descansar", "descanso", "status", "ficha", "ooc", "off", "fora", "grito", "gritar", "cena", "quem", "presentes", "ajuda", "help", "comandos", "revelar", "mostrar", "trilha", "musica", "dinheiro", "grana", "ouro", "moedas", "money", "pagar", "dar", "pay", "saldo", "bolsa"])
+const RESERVED = new Set(["r", "rolar", "roll", "dado", "sr", "rs", "gmr", "secreto", "me", "acao", "a", "w", "s", "sussurro", "sussurrar", "n", "narrar", "narracao", "npc", "como", "desfazer", "undo", "init", "iniciativa", "proximo", "prox", "next", "turno", "cond", "condicao", "gm", "mestre", "moeda", "coin", "oraculo", "sorte", "destino", "dano", "ferir", "cura", "curar", "descansar", "descanso", "status", "ficha", "ooc", "off", "fora", "grito", "gritar", "cena", "quem", "presentes", "ajuda", "help", "comandos", "revelar", "mostrar", "trilha", "musica", "dinheiro", "grana", "ouro", "moedas", "money", "pagar", "dar", "pay", "saldo", "bolsa", "teste", "nh"])
 const str = (v: any, max: number) => String(v ?? "").trim().slice(0, max)
 const url = (v: any) => { const s = str(v, 600); return /^https:\/\/\S+$/.test(s) ? s : "" }
 const hex = (v: any, d = "#c9a24b") => (/^#[0-9a-f]{6}$/i.test(String(v)) ? String(v) : d)
@@ -73,7 +73,8 @@ async function act(c: Ctx, b: any): Promise<any> {
         return { key, label: str(f.label, 40) || key.toUpperCase(), type, def: type === "bar" || type === "num" ? Number(f.def) || 0 : str(f.def, 200) }
       })
       if (!fields.length) return { error: "O modelo precisa de pelo menos um campo." }
-      const tpl: Template = { id: str(t.id, 40) || uid(), name: str(t.name, 40) || "Modelo novo", kind: ["pc", "npc", "creature"].includes(t.kind) ? t.kind : "pc", fields }
+      const tpl: Template = { id: str(t.id, 40) || uid(), name: str(t.name, 40) || "Modelo novo", kind: ["pc", "npc", "creature"].includes(t.kind) ? t.kind : "pc", fields,
+        roll: ["d20", "d20mod", "3d6", "d6"].includes(t.roll) ? t.roll : "d20", system: str(t.system, 40) || undefined }
       const list = c.room.templates.some((x) => x.id === tpl.id) ? c.room.templates.map((x) => (x.id === tpl.id ? tpl : x)) : [...c.room.templates, tpl]
       if (list.length > 30) return { error: "Limite de 30 modelos por sala." }
       await sql`UPDATE rooms SET templates = ${JSON.stringify(list)}::jsonb WHERE id = ${c.room.id}`
@@ -118,7 +119,7 @@ async function act(c: Ctx, b: any): Promise<any> {
     case "token.put": {
       if (!c.isGM) return { error: GM }
       const id = str(b.id, 40) || uid()
-      const tok: Token = { id, label: str(b.label, 24) || "?", sheet_id: b.sheet_id ? String(b.sheet_id) : null, x: Number(b.x) || 0, y: Number(b.y) || 0, color: hex(b.color), hidden: !!b.hidden, size: int(b.size, 1, 4, 1) }
+      const tok: Token = { id, label: str(b.label, 24) || "?", sheet_id: b.sheet_id ? String(b.sheet_id) : null, x: Number(b.x) || 0, y: Number(b.y) || 0, color: hex(b.color), hidden: !!b.hidden, size: int(b.size, 1, 4, 1), shape: /^[a-z]{1,12}$/.test(String(b.shape ?? "")) ? String(b.shape) : "circle" }
       if (Object.keys(c.room.map?.tokens ?? {}).length >= 80 && !c.room.map.tokens[id]) return { error: "Limite de 80 peças no mapa." }
       await sql`UPDATE rooms SET map = jsonb_set(CASE WHEN map ? 'tokens' THEN map ELSE map || '{"tokens":{}}'::jsonb END, ARRAY['tokens', ${id}]::text[], ${JSON.stringify(tok)}::jsonb, true) WHERE id = ${c.room.id}`
       return { id }

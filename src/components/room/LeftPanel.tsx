@@ -143,23 +143,25 @@ export function SheetView({ s }: { s: Sheet }) {
         {s.avatar ? <img className="avatar" src={s.avatar} alt="" /> : <div className="ph"><Icon n="user" size={24} /></div>}
         <div className="grow">
           {edit ? <input className="field" style={{ font: "700 1.1rem var(--f-title)", padding: ".2em .4em" }} value={nm} onChange={(e) => setNm(e.target.value)} onBlur={() => nm !== s.name && R.act("sheet.update", { id: s.id, name: nm })} /> : <h3>{s.name}</h3>}
-          <div style={{ fontSize: ".8rem", color: "#6b4a22" }}>{t.name}{s.owner_member ? ` · de ${R.memberById(s.owner_member)?.name ?? "?"}` : ""}</div>
+          <div style={{ fontSize: ".8rem", color: "#6b4a22" }}>{t.system ? `${t.system} · ` : ""}{t.name}{s.owner_member ? ` · de ${R.memberById(s.owner_member)?.name ?? "?"}` : ""}</div>
         </div>
       </div>
 
       <div className="money-row">
         <span className="coin-mini lg">$</span>
-        <span className="lbl" style={{ margin: 0 }}>Dinheiro</span>
-        <b className="money grow">$ {Number(s.data?._money ?? 0)}</b>
+        <div className="money-val">
+          <small>Grana</small>
+          <b className="money">$ {Number(s.data?._money ?? 0)}</b>
+        </div>
         {edit && (
           <div className="pm-btns">
-            <button title="−10" onClick={() => R.chat(`/dinheiro @${tag} -10`)}>−10</button>
-            <button title="−1" onClick={() => R.chat(`/dinheiro @${tag} -1`)}><Icon n="minus" size={12} /></button>
-            <button title="+1" onClick={() => R.chat(`/dinheiro @${tag} +1`)}><Icon n="plus" size={12} /></button>
-            <button title="+10" onClick={() => R.chat(`/dinheiro @${tag} +10`)}>+10</button>
+            <button title="−10" onClick={() => R.chat(`/grana @${tag} -10`)}>−10</button>
+            <button title="−1" onClick={() => R.chat(`/grana @${tag} -1`)}>−1</button>
+            <button title="+1" onClick={() => R.chat(`/grana @${tag} +1`)}>+1</button>
+            <button title="+10" onClick={() => R.chat(`/grana @${tag} +10`)}>+10</button>
           </div>
         )}
-        {s.id !== R.me.sheet_id && R.me.sheet_id && <button className="btn ghost sm" style={{ color: "inherit" }} title="Pagar com a sua ficha ativa" onClick={() => insertInChat(`/pagar @${tag} `, true)}>Pagar</button>}
+        {!edit && R.me.sheet_id && <button className="btn ghost sm" style={{ color: "inherit" }} title="Pagar com a sua ficha ativa" onClick={() => insertInChat(`/pagar @${tag} `, true)}>Pagar</button>}
       </div>
 
       {conds.length > 0 && (
@@ -202,11 +204,12 @@ export function SheetView({ s }: { s: Sheet }) {
       {nums.length > 0 && (
         <div className="attrs" style={{ marginTop: ".7rem" }}>
           {nums.map((f) => (
-            <div key={f.key} className="attr" title={`Clique no dado para rolar 1d20+${f.key.toUpperCase()}`}>
+            <div key={f.key} className="attr" title={rollHint(t, f.key)}>
               <small>{f.label}</small>
               <input type="number" value={local[f.key] ?? 0} readOnly={!edit}
                 onChange={(e) => setLocal((l) => ({ ...l, [f.key]: Number(e.target.value) }))} onBlur={(e) => edit && Number(e.target.value) !== Number(s.data[f.key]) && save({ [f.key]: Number(e.target.value) })} />
-              <button className="roll" onClick={() => R.chat(`/r 1d20+${f.key.toUpperCase()} @${tag} #${f.label}`)} title="Rolar"><Icon n="d20" size={13} /></button>
+              {t.roll === "d20mod" && <span className="attr-mod">{fmtMod(Math.floor((Number(local[f.key] ?? 10) - 10) / 2))}</span>}
+              <button className="roll" onClick={() => R.chat(rollCmd(t, f.key, f.label, tag))} title={rollHint(t, f.key)}><Icon n="d20" size={13} /></button>
             </div>
           ))}
         </div>
@@ -302,6 +305,10 @@ function TemplateEditor({ t, onClose }: { t: Template; onClose: () => void }) {
     <Modal title={t.id ? "Editar modelo" : "Novo modelo"} icon="quill" onClose={onClose}>
       <div className="row">
         <div className="grow"><label className="lbl">Nome</label><input className="field" value={tpl.name} onChange={(e) => setTpl({ ...tpl, name: e.target.value })} /></div>
+        <div><label className="lbl">Rolagem</label>
+          <select className="field" value={tpl.roll ?? "d20"} onChange={(e) => setTpl({ ...tpl, roll: e.target.value as Template["roll"] })}>
+            <option value="d20">1d20 + atributo</option><option value="d20mod">1d20 + modificador (D&D)</option><option value="3d6">3d6 contra atributo (GURPS)</option><option value="d6">1d6 + atributo (3D&T)</option>
+          </select></div>
         <div><label className="lbl">Para</label>
           <select className="field" value={tpl.kind} onChange={(e) => setTpl({ ...tpl, kind: e.target.value as Template["kind"] })}>
             <option value="pc">Personagens</option><option value="npc">NPCs</option><option value="creature">Criaturas</option>
@@ -423,9 +430,11 @@ function HelpTab() {
     ["/descansar @todos", "Enche todas as barras"],
     ["/status @Lyra", "Resumo da ficha no chat"],
     ["/moeda", "Cara ou coroa (ou o botão $ antes dos dados)"],
-    ["/dinheiro @Lyra +50 · −20 · =100", "Dinheiro da ficha (sem @, a sua ficha ativa)"],
+    ["/grana @Lyra +50 · −20 · =100", "Grana da ficha (sem @, a sua ficha ativa)"],
+    ["/teste ST · /teste DX-2 · /teste 12", "GURPS: 3d6 contra o atributo, com margem de sucesso"],
+    ["1d20+MODFOR", "D&D: soma o modificador do atributo, (valor − 10) ÷ 2"],
     ["/pagar @Odo 15", "Paga com o dinheiro da sua ficha ativa"],
-    ["/saldo", "Dinheiro das suas fichas (só você vê)"],
+    ["/saldo", "Grana das suas fichas (só você vê)"],
     ["/oraculo a ponte aguenta?", "Sim, não, mas, e… (2d6)"],
     ["/ooc texto · ((texto))", "Fora do personagem"],
     ["/grito SOCORRO", "Grito em letras garrafais"],
@@ -487,7 +496,7 @@ export function sheetMenu(R: ReturnType<typeof useRoom>, s: Sheet, open?: () => 
     edit && s.id !== R.me.sheet_id ? { label: "Usar esta ficha", icon: "star", onClick: () => R.act("sheet.use", { id: s.id }) } : null,
     { label: "Mostrar status no chat", icon: "eye", onClick: () => R.chat(`/status ${tag}`) },
     { label: "Mencionar no chat", icon: "user", onClick: () => insertInChat(tag + " ") },
-    nums.length ? { label: "Rolar 1d20 + atributo…", icon: "d20", onClick: () => insertInChat(`/r 1d20+${nums[0].key.toUpperCase()} ${tag} #`, true) } : null,
+    nums.length && t ? { label: t.roll === "3d6" ? "Teste de atributo (3d6)…" : "Rolar atributo…", icon: "d20", onClick: () => insertInChat(rollCmd(t, nums[0].key, nums[0].label, tag.slice(1)).replace(/#.*$/, ""), true) } : null,
     edit && hasBar ? "sep" : null,
     edit && hasBar ? { label: "Dano 1", icon: "sword", onClick: () => R.chat(`/dano ${tag} 1`) } : null,
     edit && hasBar ? { label: "Dano 5", icon: "sword", onClick: () => R.chat(`/dano ${tag} 5`) } : null,
@@ -495,7 +504,7 @@ export function sheetMenu(R: ReturnType<typeof useRoom>, s: Sheet, open?: () => 
     edit && hasBar ? { label: "Curar 5", icon: "heart", onClick: () => R.chat(`/cura ${tag} 5`) } : null,
     edit && hasBar ? { label: "Descansar (encher barras)", icon: "flame", onClick: () => R.chat(`/descansar ${tag}`) } : null,
     edit ? { label: "Adicionar condição…", icon: "flame", onClick: () => insertInChat(`/cond ${tag} `, true) } : null,
-    edit ? { label: "Dar ou tirar dinheiro…", icon: "flask", hint: `$ ${Number(s.data?._money ?? 0)}`, onClick: () => insertInChat(`/dinheiro ${tag} +`, true) } : null,
+    edit ? { label: "Dar ou tirar grana…", icon: "flask", hint: `$ ${Number(s.data?._money ?? 0)}`, onClick: () => insertInChat(`/grana ${tag} +`, true) } : null,
     R.me.sheet_id && R.me.sheet_id !== s.id ? { label: "Pagar a esta ficha…", icon: "flask", onClick: () => insertInChat(`/pagar ${tag} `, true) } : null,
     "sep",
     edit && !inInit ? { label: "Rolar iniciativa", icon: "hourglass", onClick: () => R.chat(`/init 1d20${nums.some((f) => f.key === "des") ? "+DES" : ""} ${tag}`) } : null,
@@ -521,4 +530,20 @@ export function noteMenu(R: ReturnType<typeof useRoom>, n: Note, edit: () => voi
     can ? "sep" : null,
     can ? { label: "Apagar", icon: "trash", danger: true, onClick: () => confirm(`Apagar “${n.title}”?`) && R.act("note.delete", { id: n.id }) } : null,
   ]
+}
+
+const fmtMod = (n: number) => (n >= 0 ? `+${n}` : `${n}`)
+/** Comando do botão de rolar de cada atributo, conforme o sistema da ficha. */
+export function rollCmd(t: Template, key: string, label: string, tag: string) {
+  const K = key.toUpperCase()
+  switch (t.roll) {
+    case "3d6": return `/teste ${K} @${tag} #${label}`
+    case "d20mod": return `/r 1d20+MOD${K} @${tag} #${label}`
+    case "d6": return `/r 1d6+${K} @${tag} #${label}`
+    default: return `/r 1d20+${K} @${tag} #${label}`
+  }
+}
+function rollHint(t: Template, key: string) {
+  const K = key.toUpperCase()
+  return t.roll === "3d6" ? `Teste: 3d6 contra ${K}` : t.roll === "d20mod" ? `Rolar 1d20 + modificador de ${K}` : t.roll === "d6" ? `Rolar 1d6 + ${K}` : `Rolar 1d20 + ${K}`
 }

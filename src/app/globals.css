@@ -674,3 +674,21 @@ html:not([data-skin="medieval"]) .theme-light .modal-back .field option { backgr
 .money-chip { font: 700 .68rem var(--f-mono); color: #8a6114; background: rgba(217,173,69,.18); border: 1px solid rgba(217,173,69,.5); padding: .05rem .35rem; border-radius: 999px; white-space: nowrap; }
 .money-row { display: flex; align-items: center; gap: .5rem; margin-top: .6rem; padding: .4rem .5rem; border-radius: 8px; border: 1px dashed rgba(138,97,20,.45); background: rgba(217,173,69,.08); }
 .money-row .pm-btns button { width: auto; min-width: 24px; padding: 0 .3rem; font: 700 .7rem var(--f-mono); }
+.money-row { flex-wrap: nowrap; gap: .45rem; padding: .35rem .45rem; }
+.money-val { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.1; }
+.money-val small { font: 700 .6rem var(--f-title); letter-spacing: .1em; text-transform: uppercase; color: #6b4a22; }
+.money-val b { font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.money-row .pm-btns { flex: none; gap: .15rem; }
+.money-row .pm-btns button { min-width: 0; width: auto; height: 22px; padding: 0 .28rem; font-size: .66rem; }
+.attr-mod { position: absolute; top: 2px; left: 4px; font: 700 .62rem var(--f-mono); color: #7a4a0c; }
+
+/* Peças com silhueta */
+.token.shaped { background: transparent !important; border: 0; border-radius: 0; box-shadow: none; filter: drop-shadow(0 3px 4px rgba(0,0,0,.65)); }
+.token.shaped svg { width: 100%; height: 100%; pointer-events: none; }
+.token.shaped.turn { animation: none; filter: drop-shadow(0 0 6px rgba(243,213,138,.95)) drop-shadow(0 3px 4px rgba(0,0,0,.6)); }
+.token.shaped:hover { transform: scale(1.12) rotate(-3deg); }
+.shape-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: .3rem; }
+.shape-opt { display: flex; flex-direction: column; align-items: center; gap: .15rem; padding: .35rem .2rem; border-radius: 8px; cursor: pointer; border: 1px solid var(--line-soft); background: var(--tint); color: var(--ink); transition: all .15s var(--ease); }
+.shape-opt:hover { transform: translateY(-2px); border-color: var(--gold); }
+.shape-opt.on { border-color: var(--gold-hi); background: rgba(201,162,75,.16); }
+.shape-opt small { font-size: .62rem; color: var(--ink-dim); white-space: nowrap; }

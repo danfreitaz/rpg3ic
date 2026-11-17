@@ -5,6 +5,7 @@ import { openMenu } from "@/components/ContextMenu"
 import { EMPTY_INIT, EMPTY_MAP, type InitState, type MapState, type Note, type Token } from "@/lib/types"
 import { hhmm, hpOf, initials, useRoom } from "./ctx"
 import { NoteEditor, noteMenu, sheetMenu } from "./LeftPanel"
+import { SHAPES, ShapeSvg } from "./tokens"
 import { Modal } from "./Table"
 
 type Tab = "map" | "init" | "dice" | "diary"
@@ -88,7 +89,10 @@ function MapTab() {
     const unplaced = R.sheets.filter((s) => !Object.values(map.tokens ?? {}).some((k) => k.sheet_id === s.id)).slice(0, 8)
     openMenu(e, [
       { title: `Mapa · casa ${cx + 1}, ${cy + 1}` },
-      { label: "Nova peça aqui", icon: "plus", onClick: () => R.act("token.put", { label: "?", x: cx, y: cy, color: "#b9a27a" }) },
+      { label: "Nova peça aqui…", icon: "plus", onClick: () => setEditTok({ id: "", label: "", x: cx, y: cy, color: "#b9a27a", shape: "circle" }) },
+      { label: "Morcego aqui", icon: "pin", onClick: () => R.act("token.put", { label: "Morcego", shape: "bat", x: cx, y: cy, color: "#5b4a6e" }) },
+      { label: "Esqueleto aqui", icon: "pin", onClick: () => R.act("token.put", { label: "Esqueleto", shape: "skeleton", x: cx, y: cy, color: "#e8dcc0" }) },
+      { label: "Slime aqui", icon: "pin", onClick: () => R.act("token.put", { label: "Slime", shape: "slime", x: cx, y: cy, color: "#5fbf6a" }) },
       ...unplaced.map((s) => ({ label: `Pôr ${s.name} aqui`, icon: "pin", onClick: () => R.act("token.put", { label: s.name.slice(0, 2), sheet_id: s.id, x: cx, y: cy, color: R.memberById(s.owner_member ?? "")?.color ?? (s.kind === "creature" ? "#a3362a" : "#b9a27a"), hidden: s.hidden }) })),
       "sep",
       map.fogOn ? { label: "Revelar área (5×5)", icon: "eye", onClick: () => fogArea(cx, cy, 2, "0") } : null,
@@ -138,7 +142,7 @@ function MapTab() {
               <button className="btn ghost sm" onClick={() => R.act("map.set", { fog: "0".repeat(cells) })}>Revelar tudo</button>
               <button className="btn ghost sm" onClick={() => R.act("map.set", { fog: "1".repeat(cells) })}>Cobrir</button>
             </>}
-            <button className="iconbtn" title="Nova peça" onClick={() => R.act("token.put", { label: "?", x: 0, y: 0, color: "#b9a27a" })}><Icon n="plus" size={16} /></button>
+            <button className="iconbtn" title="Nova peça" onClick={() => setEditTok({ id: "", label: "", x: 0, y: 0, color: "#b9a27a", shape: "circle" })}><Icon n="plus" size={16} /></button>
             <button className="iconbtn" title="Configurar mapa" onClick={() => setCfg(true)}><Icon n="gear" size={16} /></button>
           </>
         )}
@@ -157,7 +161,7 @@ function MapTab() {
             const pos = drag?.id === t.id ? drag : pending[t.id] ?? t
             const size = (t.size ?? 1) * CELL - 6
             return (
-              <div key={t.id} className={"token " + (drag?.id === t.id ? "drag " : "") + (t.hidden ? "hid " : "") + (curInit && sheet && curInit.sheet_id === sheet.id ? "turn" : "")}
+              <div key={t.id} className={"token " + (!sheet?.avatar && t.shape && t.shape !== "circle" ? "shaped " : "") + (drag?.id === t.id ? "drag " : "") + (t.hidden ? "hid " : "") + (curInit && sheet && curInit.sheet_id === sheet.id ? "turn" : "")}
                 style={{ left: pos.x * CELL + 3, top: pos.y * CELL + 3, width: size, height: size, background: t.color, cursor: canMove(t) ? undefined : "default" }}
                 title={sheet?.name ?? t.label}
                 onPointerDown={(e) => { if (!canMove(t) || (R.isGM && tool !== "move" && map.fogOn)) return; e.stopPropagation(); gridRef.current?.setPointerCapture?.(e.pointerId); setDrag({ id: t.id, x: t.x, y: t.y }) }}
@@ -165,7 +169,7 @@ function MapTab() {
                 onContextMenu={(e) => openMenu(e, [
                   { title: sheet?.name ?? `Peça ${t.label}` },
                   sheet ? { label: "Abrir ficha", icon: "scroll", onClick: () => R.focus.setSheet(sheet.id) } : null,
-                  R.isGM ? { label: "Editar peça", icon: "quill", onClick: () => setEditTok(t) } : null,
+                  R.isGM ? { label: "Editar peça e forma…", icon: "quill", onClick: () => setEditTok(t) } : null,
                   R.isGM ? { label: t.hidden ? "Mostrar aos jogadores" : "Esconder dos jogadores", icon: t.hidden ? "eye" : "eyeoff", onClick: () => R.act("token.put", { ...t, hidden: !t.hidden }) } : null,
                   R.isGM ? { label: "Aumentar", icon: "plus", disabled: (t.size ?? 1) >= 4, onClick: () => R.act("token.put", { ...t, size: (t.size ?? 1) + 1 }) } : null,
                   R.isGM ? { label: "Diminuir", icon: "minus", disabled: (t.size ?? 1) <= 1, onClick: () => R.act("token.put", { ...t, size: (t.size ?? 1) - 1 }) } : null,
@@ -174,7 +178,7 @@ function MapTab() {
                   R.isGM ? "sep" : null,
                   R.isGM ? { label: "Tirar do mapa", icon: "trash", danger: true, onClick: () => R.act("token.del", { id: t.id }) } : null,
                 ])}>
-                {sheet?.avatar ? <img src={sheet.avatar} alt="" /> : <span>{initials(sheet?.name ?? t.label)}</span>}
+                {sheet?.avatar ? <img src={sheet.avatar} alt="" /> : t.shape && t.shape !== "circle" ? <ShapeSvg id={t.shape} color={t.color} size={size} /> : <span>{initials(sheet?.name ?? t.label)}</span>}
                 {hp && <span className="hp"><i style={{ width: hp.pct + "%" }} /></span>}
                 <span className="nm">{sheet?.name ?? t.label}</span>
               </div>
@@ -208,11 +212,21 @@ function TokenEditor({ t, onClose, sheets }: { t: Token; onClose: () => void; sh
   const R = useRoom()
   const [tok, setTok] = useState(t)
   return (
-    <Modal title="Peça do mapa" icon="pin" onClose={onClose}>
+    <Modal title={t.id ? "Peça do mapa" : "Nova peça"} icon="pin" onClose={onClose}>
       <div className="row">
         <div className="grow"><label className="lbl">Rótulo</label><input className="field" value={tok.label} onChange={(e) => setTok({ ...tok, label: e.target.value })} /></div>
         <div><label className="lbl">Cor</label><input type="color" value={tok.color} onChange={(e) => setTok({ ...tok, color: e.target.value })} style={{ width: 48, height: 38, background: "none", border: 0 }} /></div>
         <div><label className="lbl">Tamanho</label><select className="field" value={tok.size ?? 1} onChange={(e) => setTok({ ...tok, size: Number(e.target.value) })}>{[1, 2, 3, 4].map((n) => <option key={n} value={n}>{n}×{n}</option>)}</select></div>
+      </div>
+      <label className="lbl">Forma</label>
+      <div className="shape-grid">
+        {SHAPES.map((sh) => (
+          <button key={sh.id} type="button" className={"shape-opt " + ((tok.shape ?? "circle") === sh.id ? "on" : "")} title={sh.name}
+            onClick={() => setTok({ ...tok, shape: sh.id, label: !tok.label || SHAPES.some((x) => x.name === tok.label) ? (sh.id === "circle" ? tok.label : sh.name) : tok.label })}>
+            <ShapeSvg id={sh.id} color={tok.color} size={34} />
+            <small>{sh.name}</small>
+          </button>
+        ))}
       </div>
       <label className="lbl">Ligada à ficha</label>
       <select className="field" value={tok.sheet_id ?? ""} onChange={(e) => setTok({ ...tok, sheet_id: e.target.value || null })}>
@@ -223,7 +237,7 @@ function TokenEditor({ t, onClose, sheets }: { t: Token; onClose: () => void; sh
       <div className="row" style={{ marginTop: "1rem" }}>
         <button className="btn" onClick={async () => { await R.act("token.put", tok); onClose() }}><Icon n="check" size={14} /> Salvar</button>
         <span className="grow" />
-        <button className="btn red sm" onClick={async () => { await R.act("token.del", { id: t.id }); onClose() }}><Icon n="trash" size={12} /> Remover</button>
+        {t.id && <button className="btn red sm" onClick={async () => { await R.act("token.del", { id: t.id }); onClose() }}><Icon n="trash" size={12} /> Remover</button>}
       </div>
     </Modal>
   )

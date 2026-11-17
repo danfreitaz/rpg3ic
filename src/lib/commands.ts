@@ -82,7 +82,11 @@ async function doRoll(c: Ctx, w: World, text: string, secret: boolean, label0?: 
   const r = rollExpr(rest, (name) => {
     if (!target) return null
     const f = fieldOf(c.room.templates, target, name)
-    return f ? Number(target.data?.[f.key] ?? 0) : null
+    if (f) return Number(target.data?.[f.key] ?? 0)
+    // MODFOR / FORMOD: modificador de atributo no estilo D&D, (valor − 10) ÷ 2
+    const base = /^mod(.+)$/i.exec(name)?.[1] ?? /^(.+)mod$/i.exec(name)?.[1]
+    const g = base ? fieldOf(c.room.templates, target, base) : null
+    return g ? Math.floor((Number(target.data?.[g.key] ?? 10) - 10) / 2) : null
   })
   if ("error" in r) return { error: r.error }
   await post(c, { kind: "roll", body: label, speaker: voice(c, w), secret, data: { r, target: mentions.length ? target?.name : null, by: c.me.name } })
@@ -313,18 +317,43 @@ export async function handleChat(c: Ctx, raw: string): Promise<Out> {
       await post(c, { kind: "status", speaker: s.name, body: "", data: { bars, nums, conds: s.data?._conds ?? [], money: Number(s.data?._money ?? 0), avatar: s.avatar || null, by: c.me.name } })
       return { ok: true }
     }
+    case "teste": case "nh": {
+      // 3d6 contra um atributo ou número (estilo GURPS): sucesso se o total for menor ou igual.
+      const { mentions, rest } = splitMentions(arg)
+      let target: Sheet | null = mySheet(c, w)
+      if (mentions.length) { const found = resolveSheets(c, w, mentions[0]); if (found.length !== 1) return { error: `Não achei a ficha de @${mentions[0]}.` }; target = found[0] }
+      const m = /^([\wÀ-ÿ]+)\s*([+-]\s*\d+)?\s*(?:#(.*))?$/.exec(rest)
+      if (!m) return { error: "Use /teste ST, /teste DX-2, /teste 12 ou /teste IQ @alvo." }
+      let value: number, label: string
+      if (/^\d+$/.test(m[1])) { value = Number(m[1]); label = `NH ${value}` }
+      else {
+        const f = target ? fieldOf(c.room.templates, target, m[1]) : null
+        if (!f || !target) return { error: `Atributo "${m[1]}" não encontrado${target ? ` na ficha de ${target.name}` : " (escolha uma ficha ativa)"}.` }
+        value = Number(target.data?.[f.key] ?? 0); label = f.label
+      }
+      const mod = m[2] ? Number(m[2].replace(/\s/g, "")) : 0
+      const alvo = value + mod
+      const r = rollExpr("3d6", () => null)
+      if ("error" in r) return { error: r.error }
+      const t = r.total, margin = alvo - t
+      const crit = t <= 4 || (t === 5 && alvo >= 15) || (t === 6 && alvo >= 16)
+      const fumble = t === 18 || (t === 17 && alvo <= 15) || t - alvo >= 10
+      await post(c, { kind: "roll", body: (m[3]?.trim() || label) + ` (${alvo}${mod ? `, ${mod > 0 ? "+" : ""}${mod}` : ""})`, speaker: voice(c, w),
+        data: { r: { ...r, crit, fumble }, under: { alvo, margin, ok: margin >= 0 }, target: mentions.length ? target?.name : null, by: c.me.name } })
+      return { ok: true }
+    }
     case "dinheiro": case "$": case "grana": case "ouro": case "moedas": case "money": {
       const { mentions, rest } = splitMentions(arg)
       const m = /^([+\-=]?)\s*(\d+)$/.exec(rest.replace(/^\$\s*/, ""))
       const targets = (mentions.length ? mentions.flatMap((x) => resolveSheets(c, w, x)) : [mySheet(c, w)].filter(Boolean)) as Sheet[]
-      if (!targets.length) return { error: "Use /dinheiro @alvo +50 (ou −20, =100). Sem @, mexe na sua ficha ativa." }
-      if (!m) return { error: "Use /dinheiro @alvo +50, -20 ou =100." }
+      if (!targets.length) return { error: "Use /grana @alvo +50 (ou −20, =100). Sem @, mexe na sua ficha ativa." }
+      if (!m) return { error: "Use /grana @alvo +50, -20 ou =100." }
       const ch: any[] = []
       for (const s of [...new Map(targets.map((x) => [x.id, x])).values()]) {
-        if (!canEdit(c, s)) return { error: `Só o mestre mexe no dinheiro de ${s.name}. Para dar dinheiro a alguém, use /pagar.` }
+        if (!canEdit(c, s)) return { error: `Só o mestre mexe na grana de ${s.name}. Para dar grana a alguém, use /pagar.` }
         const from = Number(s.data?._money ?? 0), n = Number(m[2])
         const to = Math.max(0, m[1] === "+" ? from + n : m[1] === "-" ? from - n : n)
-        await sql`INSERT INTO undo_log (room_id, label, sheet_id, prev) VALUES (${c.room.id}, ${`dinheiro de ${s.name}: $${from} → $${to}`}, ${s.id}, ${JSON.stringify(s.data)}::jsonb)`
+        await sql`INSERT INTO undo_log (room_id, label, sheet_id, prev) VALUES (${c.room.id}, ${`grana de ${s.name}: $${from} → $${to}`}, ${s.id}, ${JSON.stringify(s.data)}::jsonb)`
         await sql`UPDATE sheets SET data = jsonb_set(data, '{_money}', ${JSON.stringify(to)}::jsonb, true) WHERE id = ${s.id}`
         ch.push({ name: s.name, from, to })
       }
@@ -336,7 +365,7 @@ export async function handleChat(c: Ctx, raw: string): Promise<Out> {
       const n = Number(rest.replace(/^\$\s*/, ""))
       if (!mentions.length || !Number.isInteger(n) || n <= 0) return { error: "Use /pagar @alvo 20 (sai da sua ficha ativa)." }
       const payer = mySheet(c, w)
-      if (!payer) return { error: "Escolha uma ficha ativa para pagar com o dinheiro dela." }
+      if (!payer) return { error: "Escolha uma ficha ativa para pagar com a grana dela." }
       const to = resolveSheets(c, w, mentions[0])[0]
       if (!to) return { error: `Não achei @${mentions[0]}.` }
       if (to.id === payer.id) return { error: "Pagar a si mesmo não muda nada." }
@@ -393,7 +422,7 @@ export async function handleChat(c: Ctx, raw: string): Promise<Out> {
       return { ok: true }
     }
     case "ajuda": case "help": case "comandos":
-      await post(c, { kind: "system", to: c.me.id, data: { icon: "help" }, body: "Comandos: /r /sr /me /w /ooc /grito /moeda /oraculo /pv /dano /cura /descansar /status /dinheiro /pagar /saldo /init /proximo /cond /quem /gm — e, para o mestre, /n /npc /cena /revelar /trilha /desfazer. A aba ? do painel esquerdo explica cada um." })
+      await post(c, { kind: "system", to: c.me.id, data: { icon: "help" }, body: "Comandos: /r /sr /me /w /ooc /grito /moeda /oraculo /pv /dano /cura /descansar /status /grana /pagar /saldo /teste /init /proximo /cond /quem /gm — e, para o mestre, /n /npc /cena /revelar /trilha /desfazer. A aba ? do painel esquerdo explica cada um." })
       return { ok: true }
     default:
       return changeAttr(c, w, cmd, arg)
