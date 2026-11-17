@@ -123,7 +123,7 @@ function MapTab() {
       </div>
       <div className="mapwrap grow">
         <div ref={gridRef} className="mapgrid" onPointerDown={onGridDown} onPointerMove={onGridMove} onPointerUp={onGridUp} onPointerLeave={onGridUp}
-          style={{ width: map.cols * CELL, height: map.rows * CELL, backgroundImage: map.image ? `url("${map.image}")` : "radial-gradient(circle at 40% 40%, #2c2015, #120c07)", cursor: R.isGM && tool !== "move" && map.fogOn ? "crosshair" : "default" }}>
+          style={{ width: map.cols * CELL, height: map.rows * CELL, backgroundImage: map.image ? `url("${map.image}")` : undefined, background: map.image ? undefined : "var(--map-empty, radial-gradient(circle at 40% 40%, #2c2015, #120c07))", cursor: R.isGM && tool !== "move" && map.fogOn ? "crosshair" : "default" }}>
           <div className="gridlines" style={{ backgroundSize: `${CELL}px ${CELL}px` }} />
           {tokens.filter(visibleFor).map((t) => {
             const sheet = t.sheet_id ? R.sheets.find((s) => s.id === t.sheet_id) : undefined

@@ -278,7 +278,7 @@ function RevealView({ m, onClose }: { m: Msg; onClose: () => void }) {
       <div className="reveal-card" onMouseDown={(e) => e.stopPropagation()}>
         <div className="reveal-glow" />
         {m.data?.title && <h2 className="title-deco">{m.data.title}</h2>}
-        {m.data?.image && <img src={m.data.image} alt={m.data?.title || "Revelação"} />}
+        {m.data?.image && <img src={m.data.image} alt={m.data?.title || "Revelação"} onError={(e) => { e.currentTarget.style.display = "none" }} />}
         {m.body && <p>{m.body}</p>}
         <button className="btn" onClick={onClose}><Icon n="check" size={14} /> Continuar</button>
       </div>

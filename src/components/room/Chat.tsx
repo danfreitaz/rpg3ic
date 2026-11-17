@@ -218,7 +218,7 @@ function Line({ m, prev }: { m: Msg; prev?: Msg }) {
   if (m.kind === "reveal") return (
     <div className="reveal-line">
       <div className="lbl2"><Icon n="eye" size={12} /> Revelação{m.data?.title ? `: ${m.data.title}` : ""}</div>
-      {m.data?.image && <img src={m.data.image} alt="" />}
+      {m.data?.image && <img src={m.data.image} alt="" onError={(e) => { e.currentTarget.style.display = "none" }} />}
       {m.body && <div className="body">{m.body}</div>}
     </div>
   )
