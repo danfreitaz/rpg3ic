@@ -65,7 +65,7 @@ function Join({ code, onJoined }: { code: string; onJoined: () => void }) {
 }
 
 function Live({ boot, code }: { boot: Boot; code: string }) {
-  const [client] = useState(() => createRealtimeClient({ url: boot.url }))
+  const [client] = useState(() => createRealtimeClient({ url: boot.url, logLevel: "warn" }))
   return <RealtimeProvider client={client}><Data boot={boot} code={code} /></RealtimeProvider>
 }
 

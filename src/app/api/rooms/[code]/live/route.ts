@@ -12,7 +12,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
   }
   const sealed = await Promise.all(LIVE.map((q) => seal(q, c.room.id, c.me.id)))
   return json({
-    url: process.env.NEON_REALTIME_URL,
+    url: String(process.env.NEON_REALTIME_URL ?? "").replace(/^http/, "ws"),
     me: { id: c.me.id, owner: c.isOwner, account: c.who.userId !== null },
     queries: Object.fromEntries(LIVE.map((q, i) => [q, sealed[i]])),
   })
