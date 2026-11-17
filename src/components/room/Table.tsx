@@ -57,7 +57,16 @@ export function Table({ live }: { live: boolean }) {
       else if (m.kind === "shout") sfx.damage()
       else if (m.kind === "scene") sfx.door()
       else if (m.kind === "reveal") { sfx.narration(); sfx.paper(); setReveal(m) }
-      else if (m.kind === "system") m.data?.icon === "door" ? sfx.door() : sfx.paper()
+      else if (m.kind === "system") {
+        m.data?.icon === "door" ? sfx.door() : sfx.paper()
+        // O mestre trocou o visual da mesa: todos passam a ver o novo visual (cada um pode trocar de novo depois).
+        if (m.data?.skin) {
+          let had = ""
+          try { had = localStorage.getItem("r3_skin") || ""; localStorage.removeItem("r3_skin") } catch {}
+          setSkinPick("")
+          if (had && had !== m.data.skin) R.toast("O mestre trocou o visual da mesa. Para voltar ao seu, clique no seu nome.", true)
+        }
+      }
       else if (m.member_id !== R.me.id) sfx.msg()
     }
   }, [R.messages, R.me.id])
