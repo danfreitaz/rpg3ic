@@ -212,3 +212,4 @@ html[data-skin="mirc"] .hero::before, html[data-skin="mirc"] .side::before, html
 html[data-skin="mirc"] .hero .title-deco { color: #000080; text-shadow: none; }
 html[data-skin="mirc"] ::-webkit-scrollbar { width: 16px; background: #dfdfdf; }
 html[data-skin="mirc"] ::-webkit-scrollbar-thumb { background: #c0c0c0; border: 0; border-radius: 0; box-shadow: var(--btn-shadow); }
+html[data-skin="mirc"] .scene-card, html[data-skin="mirc"] .ribbon { color: #fff; }
