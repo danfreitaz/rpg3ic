@@ -1,6 +1,7 @@
 "use client"
 import Link from "next/link"
 import { useEffect, useRef, useState } from "react"
+import { createPortal } from "react-dom"
 import { Icon, Seal } from "@/components/Icon"
 import { ambienceVolume, playAmbience, setAmbienceVolume, setSoundOn, sfx, soundOn, stopAmbience, unlockAudio } from "@/components/sound"
 import { AMBIENCES, COLORS, SKINS, type Msg } from "@/lib/types"
@@ -131,14 +132,17 @@ export function Modal({ title, icon, onClose, children }: { title: string; icon:
     window.addEventListener("keydown", k)
     return () => window.removeEventListener("keydown", k)
   }, [onClose])
-  return (
+  // Portal: o modal sai de dentro dos painéis, então nenhum recorte, desfoque ou camada de skin o esconde.
+  if (typeof document === "undefined") return null
+  return createPortal(
     <div className="modal-back" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="frame modal rise">
         <span className="corner-tr" /><span className="corner-bl" />
         <div className="row"><h2 className="grow"><Icon n={icon} /> {title}</h2><button className="iconbtn" onClick={onClose}><Icon n="x" /></button></div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 

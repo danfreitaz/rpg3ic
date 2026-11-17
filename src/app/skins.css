@@ -213,3 +213,40 @@ html[data-skin="mirc"] .hero .title-deco { color: #000080; text-shadow: none; }
 html[data-skin="mirc"] ::-webkit-scrollbar { width: 16px; background: #dfdfdf; }
 html[data-skin="mirc"] ::-webkit-scrollbar-thumb { background: #c0c0c0; border: 0; border-radius: 0; box-shadow: var(--btn-shadow); }
 html[data-skin="mirc"] .scene-card, html[data-skin="mirc"] .ribbon { color: #fff; }
+
+/* Checkup de legibilidade */
+html:not([data-skin="medieval"]) .composer { background: none; border-top-color: var(--line-soft); }
+html:not([data-skin="medieval"]) .chat-head { border-bottom-color: var(--line-soft); }
+html:not([data-skin="medieval"]) .hint b { color: var(--accent); }
+html:not([data-skin="medieval"]) .hint.on, html:not([data-skin="medieval"]) .hint:hover { background: var(--tint-2); }
+html:not([data-skin="medieval"]) .turnbar { color: var(--accent); background: linear-gradient(90deg, transparent, var(--tint-2), transparent); }
+html:not([data-skin="medieval"]) .reveal-line { border-color: var(--accent); background: var(--card-bg); }
+html:not([data-skin="medieval"]) .reveal-line .lbl2, html:not([data-skin="medieval"]) .rollcard .lbl2 { color: var(--accent); }
+html:not([data-skin="medieval"]) .rollcard .expr, html:not([data-skin="medieval"]) .mod { color: var(--ink-dim); }
+html:not([data-skin="medieval"]) .sys { color: var(--ink-dim); border-color: var(--line-soft); }
+html:not([data-skin="medieval"]) .sys .ic { color: var(--accent); }
+html:not([data-skin="medieval"]) .ooc { color: var(--ink-faint); }
+html:not([data-skin="medieval"]) .msg.shout .body { color: var(--accent); text-shadow: none; }
+html:not([data-skin="medieval"]) .codebadge { color: var(--accent); border-color: var(--accent); }
+html:not([data-skin="medieval"]) .room-item .code { color: var(--accent); }
+html:not([data-skin="medieval"]) .muted { color: var(--ink-dim); }
+html:not([data-skin="medieval"]) .err { color: var(--blood-hi); }
+html:not([data-skin="medieval"]) .stat b { color: var(--accent); }
+html:not([data-skin="medieval"]) .histo i { background: var(--accent); }
+html:not([data-skin="medieval"]) .note .txt, html:not([data-skin="medieval"]) .note div { color: var(--ink); }
+html:not([data-skin="medieval"]) .amb-opt.on, html:not([data-skin="medieval"]) .skin-opt.on { color: var(--accent); border-color: var(--accent); background: var(--tint-2); }
+html:not([data-skin="medieval"]) .toast { border-color: var(--blood); }
+html:not([data-skin="medieval"]) .toast.ok { border-color: var(--moss); }
+html:not([data-skin="medieval"]) .foot { color: var(--ink-faint); }
+html:not([data-skin="medieval"]) .token .nm { color: var(--ink); text-shadow: 0 0 3px var(--map-bg), 0 0 3px var(--map-bg); }
+html:not([data-skin="medieval"]) .chip.gold { color: var(--accent); border-color: var(--accent); }
+html:not([data-skin="medieval"]) .reveal-back { background: rgba(0,0,0,.7); }
+html[data-skin="minimal"] .reveal-back, html[data-skin="mirc"] .reveal-back { background: rgba(40,40,40,.55); }
+html[data-skin="minimal"] .chip.violet { color: #5b3a85; } html[data-skin="minimal"] .chip.green { color: #2f6b3f; } html[data-skin="minimal"] .chip.red { color: #b3261e; }
+html[data-skin="mirc"] .chip.violet { color: #800080; } html[data-skin="mirc"] .chip.green { color: #008000; } html[data-skin="mirc"] .chip.red { color: #c00000; }
+html[data-skin="minimal"] .dice-total, html[data-skin="mirc"] .dice-total { color: var(--accent); text-shadow: 0 2px 0 #fff, 0 0 20px rgba(255,255,255,.9); }
+html[data-skin="minimal"] .modal-back, html[data-skin="mirc"] .modal-back { background: rgba(30, 30, 30, .45); }
+html[data-skin="mirc"] .modal.frame { box-shadow: var(--btn-shadow), 4px 4px 0 rgba(0,0,0,.35); }
+html[data-skin="mirc"] .hints, html[data-skin="mirc"] .amb-menu { box-shadow: var(--btn-shadow); border: 0; }
+html[data-skin="scifi"] .modal-back { background: rgba(0, 6, 12, .82); }
+html[data-skin="modern"] .modal.frame, html[data-skin="modern"] .amb-menu, html[data-skin="modern"] .hints { background: #1a1d2e; }

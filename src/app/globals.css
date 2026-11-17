@@ -637,3 +637,12 @@ body > * { position: relative; z-index: 1; }
 .theme-light .modal-back .empty { background: transparent; }
 html:not([data-skin="medieval"]) .theme-light .modal-back .field { background: var(--field-bg); color: var(--ink); }
 html:not([data-skin="medieval"]) .theme-light .modal-back .field option { background: var(--pop-bg); }
+
+/* Camadas: o topo (e seus menus) sempre acima dos painéis; overlays acima de tudo */
+.topbar { position: relative; z-index: 30; }
+.board { position: relative; z-index: 1; }
+.modal-back { z-index: 200; }
+.reveal-back { z-index: 210; }
+.dice-stage { z-index: 190; }
+.toasts { z-index: 220; }
+.amb-menu { z-index: 60; }
