@@ -269,3 +269,6 @@ html[data-skin="minimal"] { --on-accent: #ffffff; }
 html[data-skin="modern"] { --on-accent: #ffffff; }
 html[data-skin="scifi"] { --on-accent: #04060b; }
 html[data-skin="mirc"] { --on-accent: #ffffff; }
+html:not([data-skin="medieval"]) .money, html:not([data-skin="medieval"]) .theme-light .money { color: var(--accent); }
+html:not([data-skin="medieval"]) .money-row { border-color: var(--line); background: var(--tint); }
+html[data-skin="scifi"] .money-chip { color: #00f0ff; background: rgba(0,240,255,.08); border-color: rgba(0,240,255,.4); }

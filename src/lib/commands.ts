@@ -308,9 +308,52 @@ export async function handleChat(c: Ctx, raw: string): Promise<Out> {
       const s = mentions.length ? resolveSheets(c, w, mentions[0])[0] : mySheet(c, w)
       if (!s) return { error: "Use /status @alvo." }
       const t = c.room.templates.find((x) => x.id === s.template_id)
-      const bars = (t?.fields ?? []).filter((f) => f.type === "bar").map((f) => ({ label: f.label, v: Number(s.data?.[f.key] ?? 0), m: Number(s.data?.[f.key + "_max"] ?? 0) }))
+      const bars = (t?.fields ?? []).filter((f) => f.type === "bar").map((f) => ({ key: f.key, label: f.label, v: Number(s.data?.[f.key] ?? 0), m: Number(s.data?.[f.key + "_max"] ?? 0) }))
       const nums = (t?.fields ?? []).filter((f) => f.type === "num").map((f) => ({ label: f.key.toUpperCase(), v: Number(s.data?.[f.key] ?? 0) }))
-      await post(c, { kind: "status", speaker: s.name, body: "", data: { bars, nums, conds: s.data?._conds ?? [], avatar: s.avatar || null, by: c.me.name } })
+      await post(c, { kind: "status", speaker: s.name, body: "", data: { bars, nums, conds: s.data?._conds ?? [], money: Number(s.data?._money ?? 0), avatar: s.avatar || null, by: c.me.name } })
+      return { ok: true }
+    }
+    case "dinheiro": case "$": case "grana": case "ouro": case "moedas": case "money": {
+      const { mentions, rest } = splitMentions(arg)
+      const m = /^([+\-=]?)\s*(\d+)$/.exec(rest.replace(/^\$\s*/, ""))
+      const targets = (mentions.length ? mentions.flatMap((x) => resolveSheets(c, w, x)) : [mySheet(c, w)].filter(Boolean)) as Sheet[]
+      if (!targets.length) return { error: "Use /dinheiro @alvo +50 (ou −20, =100). Sem @, mexe na sua ficha ativa." }
+      if (!m) return { error: "Use /dinheiro @alvo +50, -20 ou =100." }
+      const ch: any[] = []
+      for (const s of [...new Map(targets.map((x) => [x.id, x])).values()]) {
+        if (!canEdit(c, s)) return { error: `Só o mestre mexe no dinheiro de ${s.name}. Para dar dinheiro a alguém, use /pagar.` }
+        const from = Number(s.data?._money ?? 0), n = Number(m[2])
+        const to = Math.max(0, m[1] === "+" ? from + n : m[1] === "-" ? from - n : n)
+        await sql`INSERT INTO undo_log (room_id, label, sheet_id, prev) VALUES (${c.room.id}, ${`dinheiro de ${s.name}: $${from} → $${to}`}, ${s.id}, ${JSON.stringify(s.data)}::jsonb)`
+        await sql`UPDATE sheets SET data = jsonb_set(data, '{_money}', ${JSON.stringify(to)}::jsonb, true) WHERE id = ${s.id}`
+        ch.push({ name: s.name, from, to })
+      }
+      await post(c, { kind: "money", data: { ch, by: c.me.name } })
+      return { ok: true }
+    }
+    case "pagar": case "dar": case "pay": {
+      const { mentions, rest } = splitMentions(arg)
+      const n = Number(rest.replace(/^\$\s*/, ""))
+      if (!mentions.length || !Number.isInteger(n) || n <= 0) return { error: "Use /pagar @alvo 20 (sai da sua ficha ativa)." }
+      const payer = mySheet(c, w)
+      if (!payer) return { error: "Escolha uma ficha ativa para pagar com o dinheiro dela." }
+      const to = resolveSheets(c, w, mentions[0])[0]
+      if (!to) return { error: `Não achei @${mentions[0]}.` }
+      if (to.id === payer.id) return { error: "Pagar a si mesmo não muda nada." }
+      const have = Number(payer.data?._money ?? 0)
+      if (have < n) return { error: `${payer.name} só tem $ ${have}.` }
+      const fresh = await sql`SELECT data FROM sheets WHERE id = ${to.id}`
+      const toHave = Number(fresh[0]?.data?._money ?? 0)
+      await sql`UPDATE sheets SET data = jsonb_set(data, '{_money}', ${JSON.stringify(have - n)}::jsonb, true) WHERE id = ${payer.id}`
+      await sql`UPDATE sheets SET data = jsonb_set(data, '{_money}', ${JSON.stringify(toHave + n)}::jsonb, true) WHERE id = ${to.id}`
+      await post(c, { kind: "money", data: { pay: { from: payer.name, to: to.name, n }, ch: [{ name: payer.name, from: have, to: have - n }, { name: to.name, from: toHave, to: toHave + n }], by: c.me.name } })
+      return { ok: true }
+    }
+    case "saldo": case "bolsa": {
+      const s = mySheet(c, w)
+      const list = c.isGM ? w.sheets : w.sheets.filter((x) => x.owner_member === c.me.id)
+      if (!list.length && !s) return { error: "Você não tem fichas." }
+      await post(c, { kind: "system", to: c.me.id, data: { icon: "flask" }, body: "Bolsas: " + list.map((x) => `${x.name} $ ${Number(x.data?._money ?? 0)}`).join(" · ") })
       return { ok: true }
     }
     case "ooc": case "off": case "fora":
@@ -350,7 +393,7 @@ export async function handleChat(c: Ctx, raw: string): Promise<Out> {
       return { ok: true }
     }
     case "ajuda": case "help": case "comandos":
-      await post(c, { kind: "system", to: c.me.id, data: { icon: "help" }, body: "Comandos: /r /sr /me /w /ooc /grito /moeda /oraculo /pv /dano /cura /descansar /status /init /proximo /cond /quem /gm — e, para o mestre, /n /npc /cena /revelar /trilha /desfazer. A aba ? do painel esquerdo explica cada um." })
+      await post(c, { kind: "system", to: c.me.id, data: { icon: "help" }, body: "Comandos: /r /sr /me /w /ooc /grito /moeda /oraculo /pv /dano /cura /descansar /status /dinheiro /pagar /saldo /init /proximo /cond /quem /gm — e, para o mestre, /n /npc /cena /revelar /trilha /desfazer. A aba ? do painel esquerdo explica cada um." })
       return { ok: true }
     default:
       return changeAttr(c, w, cmd, arg)

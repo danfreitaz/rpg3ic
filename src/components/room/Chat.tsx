@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { Flourish, Icon } from "@/components/Icon"
 import type { Macro, Msg } from "@/lib/types"
 import { Modal } from "./Table"
-import { hhmm, initials, useRoom } from "./ctx"
+import { barClass, hhmm, initials, useRoom } from "./ctx"
 import { sfx } from "@/components/sound"
 import { insertInChat, openMenu, type MenuItem } from "@/components/ContextMenu"
 
@@ -29,6 +29,9 @@ const COMMANDS: { c: string; d: string; gm?: boolean }[] = [
   { c: "/descansar @alvo", d: "Enche todas as barras (@todos para o grupo)" },
   { c: "/status @alvo", d: "Mostra o resumo da ficha no chat" },
   { c: "/moeda", d: "Cara ou coroa" },
+  { c: "/dinheiro @alvo +50", d: "Dá, tira (−20) ou define (=100) o dinheiro de uma ficha" },
+  { c: "/pagar @alvo 20", d: "Paga com o dinheiro da sua ficha ativa" },
+  { c: "/saldo", d: "Mostra o dinheiro das suas fichas (só você vê)" },
   { c: "/oraculo vai chover?", d: "Pergunta de sim/não ao destino (2d6)" },
   { c: "/ooc texto", d: "Fala fora do personagem (ou ((entre parênteses duplos)))" },
   { c: "/grito texto", d: "Grita, em letras garrafais" },
@@ -187,6 +190,7 @@ export function Chat() {
         )}
         <MacroBar onRun={async (m) => { for (const line of m.text.split("\n").map((l) => l.trim()).filter(Boolean)) { if (!(await R.chat(line))) break } }} />
         <div className="dicebar">
+          <button className="dbtn coin-btn" onClick={() => send("/moeda")} title="Cara ou coroa"><span className="coin-mini">$</span>moeda</button>
           {[4, 6, 8, 10, 12, 20, 100].map((d) => (
             <button key={d} className={"dbtn die-btn " + (pool[d] ? "on" : "")} onClick={() => addDie(d)} onContextMenu={(e) => { e.preventDefault(); addDie(d, -1) }} title={`Clique: põe 1d${d} na bandeja · botão direito: tira`}>
               <DieIcon sides={d} />d{d}
@@ -259,7 +263,7 @@ function Line({ m, prev }: { m: Msg; prev?: Msg }) {
             <span className="time">{hhmm(m.created_at)}</span>
           </div>
         )}
-        {m.kind === "roll" ? <RollCard m={m} /> : m.kind === "change" ? <Changes m={m} /> : m.kind === "coin" ? <Coin m={m} /> : m.kind === "oracle" ? <Oracle m={m} /> : m.kind === "status" ? <Status m={m} /> : <div className="body">{m.body}</div>}
+        {m.kind === "roll" ? <RollCard m={m} /> : m.kind === "change" ? <Changes m={m} /> : m.kind === "coin" ? <Coin m={m} /> : m.kind === "oracle" ? <Oracle m={m} /> : m.kind === "status" ? <Status m={m} /> : m.kind === "money" ? <Money m={m} /> : <div className="body">{m.body}</div>}
       </div>
     </div>
   )
@@ -344,12 +348,16 @@ function Status({ m }: { m: Msg }) {
       {(d.bars ?? []).map((b: any) => (
         <div key={b.label} className="row" style={{ gap: ".4rem", fontSize: ".85rem" }}>
           <span style={{ width: 110 }} className="muted">{b.label}</span>
-          <div className="mini-bar grow" style={{ height: 8, margin: 0 }}><i style={{ width: (b.m ? Math.max(0, Math.min(100, (b.v / b.m) * 100)) : 0) + "%" }} /></div>
+          <div className={"mini-bar grow mb-" + barClass(b.key ?? b.label)} style={{ height: 8, margin: 0 }}><i style={{ width: (b.m ? Math.max(0, Math.min(100, (b.v / b.m) * 100)) : 0) + "%" }} /></div>
           <b className="mono" style={{ fontSize: ".78rem" }}>{b.v}/{b.m}</b>
         </div>
       ))}
       {(d.nums ?? []).length > 0 && <div className="row wrap" style={{ gap: ".25rem" }}>{d.nums.map((n: any) => <span key={n.label} className="chip">{n.label} {n.v}</span>)}</div>}
-      {(d.conds ?? []).length > 0 && <div className="row wrap" style={{ gap: ".25rem" }}>{d.conds.map((c: any) => <span key={c.n} className="chip violet">{c.n}</span>)}</div>}
+      <div className="row wrap" style={{ gap: ".25rem", fontSize: ".85rem" }}>
+        <span className="muted" style={{ width: 110 }}>Condições</span>
+        {(d.conds ?? []).length ? d.conds.map((c: any) => <span key={c.n} className="chip violet">{c.n}{c.r !== null && c.r !== undefined ? ` · ${c.r} rod.` : ""}</span>) : <span className="faint">nenhuma</span>}
+      </div>
+      {d.money !== undefined && <div className="row" style={{ gap: ".4rem", fontSize: ".85rem" }}><span className="muted" style={{ width: 110 }}>Dinheiro</span><b className="money">$ {d.money}</b></div>}
     </div>
   )
 }
@@ -425,6 +433,7 @@ function exportMd(R: ReturnType<typeof useRoom>) {
       case "coin": out.push(`🪙 ${m.speaker} jogou a moeda${m.body ? ` (${m.body})` : ""}: **${m.data?.face}**  `); break
       case "oracle": out.push(`🔮 ${m.speaker} perguntou ao oráculo: “${m.body}” → **${m.data?.answer}**  `); break
       case "turn": out.push(`⏳ Rodada ${m.data?.round} — vez de ${m.data?.name}  `); break
+      case "money": out.push(m.data?.pay ? `💰 ${m.data.pay.from} pagou $ ${m.data.pay.n} a ${m.data.pay.to}  ` : (m.data?.ch ?? []).map((c: any) => `💰 ${c.name}: $ ${c.from} → $ ${c.to}  `).join("\n")); break
       case "ooc": out.push(`<sub>(${m.speaker}, fora do jogo: ${m.body})</sub>  `); break
       case "status": break
       default: if (!m.to_member) out.push(`— ${m.body} —  `)
@@ -466,4 +475,23 @@ function msgMenu(R: ReturnType<typeof useRoom>, m: Msg, send: (raw?: string) => 
     R.isGM ? "sep" : null,
     R.isGM ? { label: "Apagar mensagem", icon: "trash", danger: true, onClick: () => R.act("msg.delete", { seq: m.seq }) } : null,
   ]
+}
+
+function Money({ m }: { m: Msg }) {
+  const d = m.data ?? {}
+  return (
+    <div className="change-list">
+      {d.pay && <div className="change"><span className="coin-mini">$</span><span><b>{d.pay.from}</b> pagou <b className="money">$ {d.pay.n}</b> a <b>{d.pay.to}</b></span></div>}
+      {(d.ch ?? []).map((c: any, i: number) => {
+        const delta = c.to - c.from
+        return (
+          <div key={i} className="change">
+            {!d.pay && <span className="coin-mini">$</span>}
+            <span><b>{c.name}</b> · dinheiro: $ {c.from} → <b className="money">$ {c.to}</b></span>
+            <span className={"delta " + (delta < 0 ? "down" : "up")}>{delta > 0 ? "+" : ""}{delta}</span>
+          </div>
+        )
+      })}
+    </div>
+  )
 }

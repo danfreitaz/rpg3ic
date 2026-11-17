@@ -40,7 +40,8 @@ function SheetsTab({ kinds }: { kinds: Sheet["kind"][] }) {
   const [sel, setSel] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
   useEffect(() => { if (R.focus.sheet && list.some((s) => s.id === R.focus.sheet)) setSel(R.focus.sheet) }, [R.focus.sheet])
-  const current = list.find((s) => s.id === sel) ?? list.find((s) => s.id === R.me.sheet_id) ?? null
+  const current = sel === "__closed" ? null : list.find((s) => s.id === sel) ?? list.find((s) => s.id === R.me.sheet_id) ?? null
+  const toggle = (id: string) => setSel(current?.id === id ? "__closed" : id)
   const tpls = R.room.templates.filter((t) => kinds.includes(t.kind))
   const mine = list.filter((s) => s.owner_member === R.me.id)
 
@@ -57,7 +58,7 @@ function SheetsTab({ kinds }: { kinds: Sheet["kind"][] }) {
           const hp = hpOf(s, R.tpl(s.template_id))
           const owner = s.owner_member ? R.memberById(s.owner_member) : null
           return (
-            <div key={s.id} className={"sheet-item " + (current?.id === s.id ? "on" : "")} onClick={() => setSel(s.id)}
+            <div key={s.id} className={"sheet-item " + (current?.id === s.id ? "on" : "")} onClick={() => toggle(s.id)} title={current?.id === s.id ? "Clique para recolher a ficha" : "Clique para abrir a ficha"}
               onContextMenu={(e) => openMenu(e, sheetMenu(R, s, () => setSel(s.id)))}>
               {s.avatar ? <img className="avatar" src={s.avatar} alt="" /> : <span className="dot lg" style={{ background: owner?.color ?? "#8a7a5c" }}>{s.name[0]}</span>}
               <div className="grow">
@@ -69,7 +70,9 @@ function SheetsTab({ kinds }: { kinds: Sheet["kind"][] }) {
                 <div className="faint" style={{ fontSize: ".75rem" }}>{owner ? owner.name : s.kind === "pc" ? "sem dono" : R.tpl(s.template_id)?.name}</div>
                 {hp && <div className="mini-bar"><i style={{ width: hp.pct + "%" }} /></div>}
               </div>
-              {(s.data?._conds ?? []).length > 0 && <span className="chip violet">{s.data._conds.length}</span>}
+              {Number(s.data?._money ?? 0) > 0 && <span className="money-chip">$ {s.data._money}</span>}
+              {(s.data?._conds ?? []).length > 0 && <span className="chip violet" title={s.data._conds.map((c: any) => c.n).join(", ")}>{s.data._conds.length}</span>}
+              <Icon n={current?.id === s.id ? "minus" : "plus"} size={12} className="faint" />
             </div>
           )
         })}
@@ -142,6 +145,21 @@ export function SheetView({ s }: { s: Sheet }) {
           {edit ? <input className="field" style={{ font: "700 1.1rem var(--f-title)", padding: ".2em .4em" }} value={nm} onChange={(e) => setNm(e.target.value)} onBlur={() => nm !== s.name && R.act("sheet.update", { id: s.id, name: nm })} /> : <h3>{s.name}</h3>}
           <div style={{ fontSize: ".8rem", color: "#6b4a22" }}>{t.name}{s.owner_member ? ` · de ${R.memberById(s.owner_member)?.name ?? "?"}` : ""}</div>
         </div>
+      </div>
+
+      <div className="money-row">
+        <span className="coin-mini lg">$</span>
+        <span className="lbl" style={{ margin: 0 }}>Dinheiro</span>
+        <b className="money grow">$ {Number(s.data?._money ?? 0)}</b>
+        {edit && (
+          <div className="pm-btns">
+            <button title="−10" onClick={() => R.chat(`/dinheiro @${tag} -10`)}>−10</button>
+            <button title="−1" onClick={() => R.chat(`/dinheiro @${tag} -1`)}><Icon n="minus" size={12} /></button>
+            <button title="+1" onClick={() => R.chat(`/dinheiro @${tag} +1`)}><Icon n="plus" size={12} /></button>
+            <button title="+10" onClick={() => R.chat(`/dinheiro @${tag} +10`)}>+10</button>
+          </div>
+        )}
+        {s.id !== R.me.sheet_id && R.me.sheet_id && <button className="btn ghost sm" style={{ color: "inherit" }} title="Pagar com a sua ficha ativa" onClick={() => insertInChat(`/pagar @${tag} `, true)}>Pagar</button>}
       </div>
 
       {conds.length > 0 && (
@@ -404,7 +422,10 @@ function HelpTab() {
     ["/dano @Orc 8 · /cura @Lyra 5", "Mexe na primeira barra da ficha (a vida)"],
     ["/descansar @todos", "Enche todas as barras"],
     ["/status @Lyra", "Resumo da ficha no chat"],
-    ["/moeda", "Cara ou coroa"],
+    ["/moeda", "Cara ou coroa (ou o botão $ antes dos dados)"],
+    ["/dinheiro @Lyra +50 · −20 · =100", "Dinheiro da ficha (sem @, a sua ficha ativa)"],
+    ["/pagar @Odo 15", "Paga com o dinheiro da sua ficha ativa"],
+    ["/saldo", "Dinheiro das suas fichas (só você vê)"],
     ["/oraculo a ponte aguenta?", "Sim, não, mas, e… (2d6)"],
     ["/ooc texto · ((texto))", "Fora do personagem"],
     ["/grito SOCORRO", "Grito em letras garrafais"],
@@ -474,6 +495,8 @@ export function sheetMenu(R: ReturnType<typeof useRoom>, s: Sheet, open?: () => 
     edit && hasBar ? { label: "Curar 5", icon: "heart", onClick: () => R.chat(`/cura ${tag} 5`) } : null,
     edit && hasBar ? { label: "Descansar (encher barras)", icon: "flame", onClick: () => R.chat(`/descansar ${tag}`) } : null,
     edit ? { label: "Adicionar condição…", icon: "flame", onClick: () => insertInChat(`/cond ${tag} `, true) } : null,
+    edit ? { label: "Dar ou tirar dinheiro…", icon: "flask", hint: `$ ${Number(s.data?._money ?? 0)}`, onClick: () => insertInChat(`/dinheiro ${tag} +`, true) } : null,
+    R.me.sheet_id && R.me.sheet_id !== s.id ? { label: "Pagar a esta ficha…", icon: "flask", onClick: () => insertInChat(`/pagar ${tag} `, true) } : null,
     "sep",
     edit && !inInit ? { label: "Rolar iniciativa", icon: "hourglass", onClick: () => R.chat(`/init 1d20${nums.some((f) => f.key === "des") ? "+DES" : ""} ${tag}`) } : null,
     R.isGM && !onMap ? { label: "Pôr no mapa", icon: "pin", onClick: () => R.act("token.put", { label: s.name.slice(0, 2), sheet_id: s.id, x: 1, y: 1, color: R.memberById(s.owner_member ?? "")?.color ?? (s.kind === "creature" ? "#a3362a" : "#b9a27a"), hidden: s.hidden }) } : null,

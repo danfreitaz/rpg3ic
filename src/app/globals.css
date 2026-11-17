@@ -535,8 +535,7 @@ body > * { position: relative; z-index: 1; }
 }
 .chat-head { background: linear-gradient(180deg, rgba(0,0,0,.25), transparent); border-bottom: 1px solid rgba(201,162,75,.25); }
 .chat-head h3 { font-family: var(--f-display); color: var(--gold-hi); letter-spacing: .06em; }
-.log { position: relative; background:
-  url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M12 2 21 7v10l-9 5-9-5V7zM12 2 7.5 9.5h9zM7.5 9.5 12 17l4.5-7.5' fill='none' stroke='%23c9a24b' stroke-opacity='.05' stroke-width='.5'/></svg>") no-repeat center / 340px; }
+.log { position: relative; }
 .msg .bubble { padding: .1rem .2rem; border-radius: 8px; transition: background .2s; }
 .msg:hover .bubble { background: rgba(255, 240, 200, .035); }
 .msg.shout .body { font: 700 1.25rem var(--f-title); color: #ffd9a8; letter-spacing: .04em; text-shadow: 0 2px 0 #000, 0 0 14px rgba(255,120,40,.45); animation: shake .35s; }
@@ -662,3 +661,16 @@ html:not([data-skin="medieval"]) .theme-light .modal-back .field option { backgr
 .skin-picker { position: fixed; top: 14px; right: 18px; z-index: 40; }
 .skin-picker > .btn { backdrop-filter: blur(6px); background: rgba(20, 13, 8, .6); }
 .skin-pop { position: absolute; top: calc(100% + 8px); right: 0; width: 470px; padding: .9rem; border-radius: 10px; background: #1f150e; border: 1px solid var(--gold-lo); box-shadow: var(--shadow); color: var(--ink); }
+
+/* Barras coloridas no status, dinheiro e moeda */
+.mini-bar.mb-pm i { background: linear-gradient(90deg, #34587c, #7aa7d1); }
+.mini-bar.mb-other i { background: linear-gradient(90deg, #4f7a3e, #a8c48c); }
+.coin-mini { width: 18px; height: 18px; flex: none; display: inline-grid; place-items: center; border-radius: 50%; font: 700 .7rem var(--f-title); color: #4a3008; background: radial-gradient(circle at 35% 30%, #fff1b8, #d9ad45 55%, #8a6114); box-shadow: inset 0 -1px 2px rgba(0,0,0,.35), 0 1px 3px rgba(0,0,0,.4); }
+.coin-mini.lg { width: 26px; height: 26px; font-size: .9rem; }
+.coin-btn { gap: .35rem; }
+.coin-btn:hover .coin-mini { animation: flip .8s var(--ease); }
+.money { color: #d9ad45; font-family: var(--f-title); }
+.theme-light .money, .parch .money { color: #8a6114; }
+.money-chip { font: 700 .68rem var(--f-mono); color: #8a6114; background: rgba(217,173,69,.18); border: 1px solid rgba(217,173,69,.5); padding: .05rem .35rem; border-radius: 999px; white-space: nowrap; }
+.money-row { display: flex; align-items: center; gap: .5rem; margin-top: .6rem; padding: .4rem .5rem; border-radius: 8px; border: 1px dashed rgba(138,97,20,.45); background: rgba(217,173,69,.08); }
+.money-row .pm-btns button { width: auto; min-width: 24px; padding: 0 .3rem; font: 700 .7rem var(--f-mono); }
